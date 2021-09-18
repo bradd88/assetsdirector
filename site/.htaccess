@@ -1,0 +1,13 @@
+# Disable directory listings.
+Options -Indexes
+
+# Rewrite URLs to be SEO friendly. Only rewrite when there are no matching files or directories.
+RewriteEngine On
+RewriteCond %{SCRIPT_FILENAME} !-d
+RewriteCond %{SCRIPT_FILENAME} !-f
+RewriteRule ^login$ index.php?page=login [NC,L]
+RewriteRule ^home$ index.php?page=home [NC,L]
+RewriteRule ^transactions$ index.php?page=transactions [NC,L]
+RewriteRule ^trades$ index.php?page=trades [NC,L]
+RewriteRule ^summary$ index.php?page=summary [NC,L]
+RewriteRule ^logout$ index.php?page=logout [NC,L]

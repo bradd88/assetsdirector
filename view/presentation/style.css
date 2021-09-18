@@ -1,0 +1,66 @@
+#navwrapper {
+    width: 15%;
+    float: left;
+}
+#mainwrapper {
+    width: 85%;
+    float: right;
+}
+#nav {
+    margin: 15px;
+}
+#main {
+    margin: 15px;
+}
+#progressWrapper {
+    width: 400px;
+    background-color: grey;
+}
+#progressBar {
+    width: 1%;
+    height: 25px;
+    background-color: green;
+    text-align: left;
+    color: white;
+    white-space: nowrap;
+    overflow: visible;
+}
+.content {
+    box-sizing: border-box;
+    background-color: #F0F8FF;
+    padding: 10px;
+    border: 2px solid black;
+    border-radius: 4px;
+}
+.link {
+    cursor: pointer;
+}
+.table {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    border: 2px solid black;
+    border-collapse: collapse;
+}
+.tr {
+    display: table-row;
+    border-top: 1px solid black;
+}
+.td {
+    display: table-cell;
+    padding: 10px;
+    vertical-align: top;
+}
+.tr:nth-child(even) {
+    background: #e7ecf0;
+}
+.tr:nth-child(odd) {
+    background: #e0e3e6;
+}
+.tr:nth-child(1) {
+    background: #d5d5d5;
+    border: 0px;
+}
+.tr.error {
+    background: red;
+}
