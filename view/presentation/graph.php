@@ -111,11 +111,13 @@ function presentationGraph($graph) {
             lineChart.lineTo(' . $point->xPosition . ',' . $point->yPosition . ');
             lineChart.moveTo(' . $point->xPosition . ',' . $point->yPosition . ');
         ';
+        /*
         if (is_numeric($point->text)) {
             $output .= 'lineChart.fillText("' . number_format($point->text, 0, '.', ',') . '",' . $point->xPosition . ',' . $point->yPosition . ');';
         } else {
             $output .= 'lineChart.fillText("' . $point->text . '",' . $point->xPosition . ',' . $point->yPosition . ');';
         }
+        */
     }
     $output .= '
         lineChart.stroke();
