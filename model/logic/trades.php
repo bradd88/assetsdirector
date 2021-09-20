@@ -77,6 +77,8 @@ function calculateTrades($buyTransactions, $sellTransactions) {
         $trade->symbol = $buy->symbol;
         $trade->type = $buy->typeDescription;
         $trade->quantity = min($buy->amount, $sell->amount);
+        $trade->buyId = $buy->transactionId;
+        $trade->sellId = $sell->transactionId;
         $trade->openTimestamp = min(strtotime($buy->transactionDate), strtotime($sell->transactionDate));
         $trade->closeTimestamp = max(strtotime($buy->transactionDate), strtotime($sell->transactionDate));
         $trade->length = calculateTimespan($trade->openTimestamp, $trade->closeTimestamp, 2);
@@ -116,11 +118,29 @@ function sortTrades($a, $b) {
 }
 
 function calculatePL($trades) {
+    $totalTrades = 0;
     $totalReturn = 0;
+
+    $winTrades = 0;
+    $lossTrades = 0;
+
     foreach ($trades as $trade) {
+        // Track returns and trades.
+        if ($trade->return >= 0) {
+            $winTrades++;
+        } else {
+            $lossTrades++;
+        }
+        $totalTrades++;
+
+        // Keep a running total for trades.
         $totalReturn = bcadd("$trade->return", "$totalReturn", 10);
         $trade->runningPl = $totalReturn;
+        $winPercentage = bcdiv("$winTrades", "$totalTrades", 10);
+        $trade->runningWinRate = bcmul("$winPercentage", "100", 10);
+
     }
+
     return $trades;
 }
 
