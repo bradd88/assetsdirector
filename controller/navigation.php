@@ -32,8 +32,8 @@ function retrievePage($request) {
         case 'transactions':
             require_once $rootDir . '/model/logic/transactions.php';
             require_once $rootDir . '/view/page/transactions.php';
-            $data = filterTransactions(mySqlReadBetween('transactions', 'transactionDate', '2021-09-01T00:00:00+0000', '2021-10-01T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
-            $output = pageTransactions($data);
+            $transactionData = filterTransactions(mySqlReadBetween('transactions', 'transactionDate', '2021-09-01T00:00:00+0000', '2021-10-01T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
+            $output = pageTransactions(calculateOutstanding($transactionData));
             break;
             
         case 'trades':

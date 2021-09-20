@@ -33,8 +33,12 @@ function pageTransactions($transactionList) {
 
     // Create a table row for each transaction.
     foreach ($transactionList as $transaction) {
+        if ($transaction->error == 'true') {
+            $output .= '<div class="tr error">';
+        } else {
+            $output .= '<div class="tr">';
+        }
         $output .= '
-        <div class="tr">
         <div class="td">' . $transaction->transactionDate . '</div>
         <div class="td">' . $transaction->transactionId . '</div>
         <div class="td">' . $transaction->description . '</div>
@@ -45,7 +49,7 @@ function pageTransactions($transactionList) {
         <div class="td">' . number_format($transaction->price, 2, '.', ',') . '</div>
         <div class="td">' . number_format($transaction->secFee, 2, '.', ',') . '</div>
         <div class="td">' . number_format($transaction->netAmount, 2, '.', ',') . '</div>
-        <div class="td">' . number_format($totalAmount, 0, '.', ',') . '</div>
+        <div class="td">' . number_format($transaction->outstanding, 0, '.', ',') . '</div>
         </div>
         ';
     }
@@ -63,7 +67,7 @@ function pageTransactions($transactionList) {
     <div class="td">' . number_format($totalFee, 2, '.', ',') . '</div>
     <div class="td">-</div>
     <div class="td">' . number_format($totalCost, 2, '.', ',') . '</div>
-    <div class="td">' . $totalAmount . '</div>
+    <div class="td">' . $transaction->outstanding . '</div>
     </div>
     </div>
     ';
