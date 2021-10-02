@@ -20,7 +20,7 @@ function retrievePage($request) {
             
         case 'logout':
             require_once $rootDir . '/view/page/login.php';
-            sessionEnd();
+            Session::stop();
             header("Location: ./login");
             break;
             
@@ -90,7 +90,7 @@ function logInRedirect($request) {
     $loginPage->message = 'Please Login.';
     
     // Get login status.
-    $loggedIn = sessionCheck();
+    $loggedIn = Session::loggedIn();
     
     // If requesting the login page, then return the login page info.
     if ($request->page == 'login') {
@@ -111,7 +111,7 @@ function logInRedirect($request) {
             $logMessage = 'Failed Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'] . ' Pass: ' . $_POST['password'];
             saveLog('logins', $logMessage);
         } else {
-            sessionLogin($userId);
+            Session::login($userId);
             $output = $request;
             $logMessage = 'Successful Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'];
             saveLog('logins2', $logMessage);

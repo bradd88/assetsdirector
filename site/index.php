@@ -21,12 +21,13 @@ require_once $rootDir . '/model/database/mySql.class.php';
 require_once $rootDir . '/model/database/flatFile.php';
 require_once $rootDir . '/model/api/tda.php';
 require_once $rootDir . '/model/logic/misc.php';
-require_once $rootDir . '/controller/sessions.php';
+require_once $rootDir . '/controller/sessions.class.php';
 require_once $rootDir . '/controller/navigation.php';
 require_once $rootDir . '/controller/cli.php';
 
-// Use a single database connection for all queries.
+// Create the database connection and start the session.
 MySql::connect();
+Session::start();
 
 // Determine if app was called from cli or a browser.
 $options = [
