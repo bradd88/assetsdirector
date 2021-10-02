@@ -33,7 +33,7 @@ function sessionLogin($id) {
 function sessionRenew($id) {
     session_regenerate_id();
     $_SESSION['expire'] = time() + $GLOBALS['config']['application']['loginTimeout'];
-    mySqlUpdate('accounts', ['lastSeen' => time()], 'id', $id);
+    MySql::update('accounts', ['lastSeen' => time()], 'id', $id);
 }
 
 // Check the status of a session. Returns TRUE for valid session, or FALSE for an invalid session.

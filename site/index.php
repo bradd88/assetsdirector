@@ -17,13 +17,16 @@ $GLOBALS['config']['application']['root'] = $rootDir;
 date_default_timezone_set($GLOBALS['config']['application']['timezone']);
 
 // Load model and controller functions.
-require_once $rootDir . '/model/database/mySql.php';
+require_once $rootDir . '/model/database/mySql.class.php';
 require_once $rootDir . '/model/database/flatFile.php';
 require_once $rootDir . '/model/api/tda.php';
 require_once $rootDir . '/model/logic/misc.php';
 require_once $rootDir . '/controller/sessions.php';
 require_once $rootDir . '/controller/navigation.php';
 require_once $rootDir . '/controller/cli.php';
+
+// Use a single database connection for all queries.
+MySql::connect();
 
 // Determine if app was called from cli or a browser.
 $options = [
@@ -47,5 +50,8 @@ if (count($cliOptions) > 0) {
     // Make sure user is logged in, then display the requested page.
     echo retrievePage(logInRedirect($request));
 }
+
+// Clear the database connection
+MySql::disconnect();
 
 ?>
