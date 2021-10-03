@@ -7,7 +7,6 @@ function presentationLayout($pageContent, $css, $menu = NULL) {
         <html>
         <head>
         <meta charset="UTF-8">
-        <script src="client.js"></script>
         <style>
         ';
     $output .= $css;

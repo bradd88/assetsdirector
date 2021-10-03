@@ -53,8 +53,6 @@ function flatten($parent) {
  * @return string
  */
 function minifyHtml($str) {
-    $str = str_replace("\n", "", $str);
-    $str = str_replace("\r", "", $str);
     $str = preg_replace('( {4})', '', $str);
     return $str;
 }
