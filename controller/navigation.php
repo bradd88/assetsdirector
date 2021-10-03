@@ -20,7 +20,7 @@ function retrievePage($request) {
             
         case 'logout':
             require_once $rootDir . '/view/page/login.php';
-            sessionEnd();
+            Session::stop();
             header("Location: ./login");
             break;
             
@@ -32,7 +32,7 @@ function retrievePage($request) {
         case 'transactions':
             require_once $rootDir . '/model/logic/transactions.php';
             require_once $rootDir . '/view/page/transactions.php';
-            $transactionData = filterTransactions(mySqlReadBetween('transactions', 'transactionDate', '2021-09-01T00:00:00+0000', '2021-10-01T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
+            $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-09-01T00:00:00+0000', '2021-10-02T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
             $output = pageTransactions(calculateOutstanding($transactionData));
             break;
             
@@ -42,7 +42,7 @@ function retrievePage($request) {
             require_once $rootDir . '/model/logic/graph.php';
             require_once $rootDir . '/view/page/trades.php';
             require_once $rootDir . '/view/presentation/graph.php';
-            $transactionData = filterTransactions(mySqlReadBetween('transactions', 'transactionDate', '2021-09-07T00:00:00+0000', '2021-09-08T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
+            $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-09-01T00:00:00+0000', '2021-10-02T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
             $tradeData = calculatePL(createTrades($transactionData));
             $table = pageTrades($tradeData);
             $graphCoords = calculatePlCoordinates($tradeData);
@@ -90,7 +90,7 @@ function logInRedirect($request) {
     $loginPage->message = 'Please Login.';
     
     // Get login status.
-    $loggedIn = sessionCheck();
+    $loggedIn = Session::loggedIn();
     
     // If requesting the login page, then return the login page info.
     if ($request->page == 'login') {
@@ -104,14 +104,14 @@ function logInRedirect($request) {
     
     // If login information has been submitted, then attempt to login. Keep a record of logins.
     if ($loggedIn == FALSE && isset($_POST['username']) && isset($_POST['password'])) {
-        $verifyLogin = mySqlVerifyLogin($_POST['username'], $_POST['password']);
-        if ($verifyLogin == FALSE) {
+        $userId = MySql::verifyLogin($_POST['username'], $_POST['password']);
+        if ($userId == FALSE) {
             $loginPage->message = 'Incorrect Username/Password.';
             $output = $loginPage;
             $logMessage = 'Failed Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'] . ' Pass: ' . $_POST['password'];
             saveLog('logins', $logMessage);
         } else {
-            sessionLogin($verifyLogin);
+            Session::login($userId);
             $output = $request;
             $logMessage = 'Successful Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'];
             saveLog('logins2', $logMessage);

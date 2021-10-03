@@ -26,7 +26,7 @@ function cliOptionsExec($cliOptions) {
     // Update transaction history.
     $updateTransactions = $cliOptions["updateTransactions"] ?? 'false';
     if ($updateTransactions == 'true') {
-        updateTransactions('2021-09-01', '2021-09-13');
+        updateTransactions('2021-09-12', '2021-10-02');
     }
     
     // Update orders.
@@ -44,14 +44,14 @@ function cliOptionsExec($cliOptions) {
  */
 function updateTdaApiTokens() {
     // Retrieve the consumer key from the db.
-    $consumerKeyQuery = mySqlRead('tda_api', 'type', 'consumerKey');
+    $consumerKeyQuery = MySql::read('tda_api', 'type', 'consumerKey');
     $consumerKey = $consumerKeyQuery[0]->string;
     
     // Get the current Refresh Token and access tokens.
-    $refreshTokenQuery = mySqlRead('tda_api', 'type', 'refreshToken');
+    $refreshTokenQuery = MySql::read('tda_api', 'type', 'refreshToken');
     $refreshToken = $refreshTokenQuery[0]->string;
     $refreshTokenExpiration = $refreshTokenQuery[0]->expiration;
-    $accessTokenQuery = mySqlRead('tda_api', 'type', 'accessToken');
+    $accessTokenQuery = MySql::read('tda_api', 'type', 'accessToken');
     $accessTokenExpiration = $accessTokenQuery[0]->expiration;
     
     // Only update tokens if they are about to expire.
@@ -71,8 +71,8 @@ function updateTdaApiTokens() {
                 $newAccessTokenExpiration = time() + $newRefreshTokenQuery->expires_in - 60;
                 
                 // Update the db with both new tokens.
-                mySqlUpdate('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
-                mySqlUpdate('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
+                MySql::update('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
+                MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
                 
                 // Log success if enabled.
                 if ($GLOBALS['config']['logs']['tokenSuccess'] == 'true') {
@@ -94,7 +94,7 @@ function updateTdaApiTokens() {
                 $newAccessTokenExpiration = time() + $newAccessTokenQuery->expires_in - 60;
                 
                 // Update the db.
-                mySqlUpdate('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
+                MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
                 
                 // Log success if enabled.
                 if ($GLOBALS['config']['logs']['tokenSuccess'] == 'true') {
@@ -127,9 +127,9 @@ function updateTransactions($startDate = NULL, $endDate = NULL){
     $endDate = $endDate ?? $today;
     
     // Get the access token and account number from the db.
-    $accessTokenQuery = mySqlRead('tda_api', 'type', 'accessToken');
+    $accessTokenQuery = MySql::read('tda_api', 'type', 'accessToken');
     $accessToken = $accessTokenQuery[0]->string;
-    $accountNumberQuery = mySqlRead('tda_api', 'type', 'accountNumber');
+    $accountNumberQuery = MySql::read('tda_api', 'type', 'accountNumber');
     $accountNumber = $accountNumberQuery[0]->string;
     
     // Clear the temporary table used for pending transactions.
@@ -149,9 +149,9 @@ function updateTransactions($startDate = NULL, $endDate = NULL){
         // Add only completed transactions to the transaction history. Pending transactions go in the temporary table.
         $pendingFlag = FALSE;
         if (isset($transaction->transactionSubType)) {
-            $mySqlResponse = mySqlCreate('transactions', $insertArray);
+            $mySqlResponse = MySql::create('transactions', $insertArray);
         } else {
-            $mySqlResponse = mySqlCreate('transactions_today', $insertArray);
+            $mySqlResponse = MySql::create('transactions_today', $insertArray);
             $pendingFlag = TRUE;
         }
 

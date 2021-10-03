@@ -25,6 +25,10 @@ require_once $rootDir . '/controller/sessions.php';
 require_once $rootDir . '/controller/navigation.php';
 require_once $rootDir . '/controller/cli.php';
 
+// Create the database connection and start the session.
+MySql::connect();
+Session::start();
+
 // Determine if app was called from cli or a browser.
 $options = [
     "updateTokens:",
@@ -47,5 +51,8 @@ if (count($cliOptions) > 0) {
     // Make sure user is logged in, then display the requested page.
     echo retrievePage(logInRedirect($request));
 }
+
+// Clear the database connection
+MySql::disconnect();
 
 ?>
