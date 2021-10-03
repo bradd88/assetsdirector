@@ -17,11 +17,11 @@ $GLOBALS['config']['application']['root'] = $rootDir;
 date_default_timezone_set($GLOBALS['config']['application']['timezone']);
 
 // Load model and controller functions.
-require_once $rootDir . '/model/database/mySql.class.php';
+require_once $rootDir . '/model/database/mySql.php';
 require_once $rootDir . '/model/database/flatFile.php';
 require_once $rootDir . '/model/api/tda.php';
 require_once $rootDir . '/model/logic/misc.php';
-require_once $rootDir . '/controller/sessions.class.php';
+require_once $rootDir . '/controller/sessions.php';
 require_once $rootDir . '/controller/navigation.php';
 require_once $rootDir . '/controller/cli.php';
 
