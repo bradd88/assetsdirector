@@ -12,7 +12,7 @@ require_once $rootDir . '/model/database/flatFile.php';
 require_once $rootDir . '/model/api/tda.php';
 require_once $rootDir . '/model/logic/misc.php';
 require_once $rootDir . '/controller/sessions.php';
-require_once $rootDir . '/controller/navigation.php';
+require_once $rootDir . '/controller/page.php';
 require_once $rootDir . '/controller/cli.php';
 
 // Create the database connection.
@@ -24,16 +24,9 @@ if ($cli->requested() === TRUE) {
     $cli->exec();  
 } else {
     Session::start();
-    // Load web app.
-    // Get requested info, or set defaults if nothing was requested.
-    $request = new stdClass();
-    $request->page = $_GET['page'] ?? 'home';
-    $request->fullLayout = $_GET['fullLayout'] ?? 'true';
-    $request->menu = $_GET['menu'] ?? 'true';
-    $request->useCached = $_GET['useCached'] ?? 'false';
-    
-    // Make sure user is logged in, then display the requested page.
-    echo retrievePage(logInRedirect($request));
+    $page = new Page;
+    $page->requested = $_GET['page'] ?? 'home';
+    echo $page->exec();
 }
 
 // Clear the database connection

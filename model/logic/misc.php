@@ -47,17 +47,6 @@ function flatten($parent) {
 }
 
 /**
- * Strip whitespacing and line returns from HTML or CSS;
- *
- * @param string $str HTML/CSS code.
- * @return string
- */
-function minifyHtml($str) {
-    $str = preg_replace('( {4})', '', $str);
-    return $str;
-}
-
-/**
  * Calculate the timespan between two timestamps and output in a readable format.
  * Output example: 11 months, 30 days
  *
