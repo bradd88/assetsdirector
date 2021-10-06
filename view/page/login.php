@@ -1,7 +1,6 @@
 <?php
 function pageLogin($message) {
-    $output = '';
-    $output .= '
+    $output = '
         <div class="login">
         <h1>Login</h1>
         <form action="./" method="post">
@@ -10,9 +9,7 @@ function pageLogin($message) {
         <input type="submit" value="Login">
         </form>
         <span id=\'loginMessage\'>
-    ';
-    $output .= $message;
-    $output .= '
+        ' . $message . '
         </span>
         </div>
     ';

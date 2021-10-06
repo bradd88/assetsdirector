@@ -1,27 +1,20 @@
 <?php 
 
 function presentationLayout($pageContent, $css, $menu = NULL) {
-    $output = '';
-    $output .= '
+    $output = '
         <!DOCTYPE html>
         <html>
         <head>
         <meta charset="UTF-8">
         <style>
-        ';
-    $output .= $css;
-    $output .= '
+        ' . $css . '
         </style>
         </head>
         <body>
-        ';
-    $output .= $menu;
-    $output .= '
+        ' . $menu . '
         <div id="mainwrapper">
         <div id="main" class="content">
-    ';
-    $output .= $pageContent;
-    $output .= '
+        ' . $pageContent . '
         </div>
         </div>
         </body>

@@ -7,12 +7,6 @@
  * @return string Page HTML.
  */
 function pageTransactions($transactionList) {
-
-    // @todo FIX: These variables should be retrieved from the database
-    $totalAmount = 0;
-    $totalFee = 0;
-    $totalCost = 0;
-
     // Create table and header
     $output = '
     <div class="table">
@@ -64,9 +58,9 @@ function pageTransactions($transactionList) {
     <div class="td">-</div>
     <div class="td">-</div>
     <div class="td">-</div>
-    <div class="td">' . number_format($totalFee, 2, '.', ',') . '</div>
     <div class="td">-</div>
-    <div class="td">' . number_format($totalCost, 2, '.', ',') . '</div>
+    <div class="td">-</div>
+    <div class="td">-</div>
     <div class="td">' . $transaction->outstanding . '</div>
     </div>
     </div>

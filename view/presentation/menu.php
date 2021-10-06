@@ -1,8 +1,7 @@
 <?php 
 
 function presentationMenu() {
-    $output = '';
-    $output .= '
+    $output = '
         <div id="navwrapper">
         <div id="nav" class="content">
         <div class="table">

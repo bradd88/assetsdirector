@@ -1,11 +1,9 @@
 <?php
 
 // Generate page containing a table with trade data, and return it as an array.
-function pageTrades($trades) {
-    $output = '';
-    
+function pageTrades($trades) {  
     // Collumn titles.
-    $output .= '
+    $output = '
         <div class="table">
         <div class="tr">
         <div class="td">Start</div>
