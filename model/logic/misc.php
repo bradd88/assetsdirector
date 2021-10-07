@@ -1,28 +1,6 @@
 <?php
 
 /**
- * Covert an array into an object.
- *
- * @param array $array
- * @return object
- */
-function arrayToObject($array) {
-    $output = json_decode(json_encode($array));
-    return $output;
-}
-
-/**
- * Convert an object into an associative array.
- *
- * @param object $object
- * @return array
- */
-function objectToArray($object) {
-    $output = json_decode(json_encode($object), TRUE);
-    return $output;
-}
-
-/**
  * Flatten an array or object.
  *
  * @param array|object $parent
