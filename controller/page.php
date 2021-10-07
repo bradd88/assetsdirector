@@ -45,61 +45,75 @@ class Page {
         $rootDir = $GLOBALS['config']['application']['root'];
         switch ($page) {
             case 'login':
-                require_once $rootDir . '/view/page/login.php';
-                $output = pageLogin('Please Login.');
+                $message = 'Please Login';
+                $content = $this->getView('page/login.phtml', ['message' => $message]);
                 break;
                 
             case 'logout':
-                require_once $rootDir . '/view/page/login.php';
                 Session::stop();
                 header("Location: ./login");
                 break;
                 
             case 'home':
-                require_once $rootDir . '/view/page/home.php';
-                $output = pageHome();
+                $content = $this->getView('page/home.phtml');
                 break;
                 
             case 'transactions':
+                // Retrieve transaction data and mark potential errors by looking for impossible transactions.
                 require_once $rootDir . '/model/logic/transactions.php';
-                require_once $rootDir . '/view/page/transactions.php';
                 $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-09-01T00:00:00+0000', '2021-10-02T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
-                $output = pageTransactions(calculateOutstanding($transactionData));
+                $transactionDataParsed = calculateOutstanding($transactionData);
+                $content = $this->getView('page/transactions.phtml', ['transactions' => $transactionDataParsed]);
                 break;
                 
-            case 'trades':
+            case 'trades':               
+                // Calculate trades using transaction data.
                 require_once $rootDir . '/model/logic/transactions.php';
                 require_once $rootDir . '/model/logic/trades.php';
-                require_once $rootDir . '/model/logic/graph.php';
-                require_once $rootDir . '/view/page/trades.php';
-                require_once $rootDir . '/view/presentation/graph.php';
                 $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-09-01T00:00:00+0000', '2021-10-02T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
                 $tradeData = calculatePL(createTrades($transactionData));
-                $table = pageTrades($tradeData);
+                $table = $this->getView('page/trades.phtml', ['trades' => $tradeData]);
+
+                // Calculate parameters from trade data and draw a graph using javascript.
+                require_once $rootDir . '/model/logic/graph.php';
                 $graphCoords = calculatePlCoordinates($tradeData);
                 $graphSettings = configureGraph($graphCoords, 1600, 800);
-                $graph = presentationGraph($graphSettings);
-                $output = $graph . $table;
+                $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
+
+                $content = $graph . $table;
                 break;
                 
             case 'summary':
                 require_once $rootDir . '/view/page/summary.php';
-                $output = pageSummary();
+                $content = $this->getView('page/summary.phtml');
                 break;
         }
         
-        require_once $rootDir . '/view/presentation/layout.php';
-        require_once $rootDir . '/view/presentation/menu.php';
-        $css = file_get_contents($rootDir . '/view/presentation/style.css');
-        if ($page === 'login') {
-            $output = presentationLayout($output, $css);
-        } else {
-            $output = presentationLayout($output, $css, presentationMenu());
-        }
+        // Build and output the page.
+        $css = $this->getView('presentation/style.css');
+        $menu = ($page === 'login') ? '' : $this->getView('presentation/menu.phtml');
+        $output = $this->getView('presentation/layout.phtml', ['css' => $css, 'menu' => $menu, 'content' => $content]);
         $output = preg_replace('( {4})', '', $output);
-        
         return $output;
     }
+
+    private function getView($name, $parameters = NULL)
+    {
+        // Move variables out of the optional parameters array for easier use.
+        if (isset($parameters)) {
+            foreach ($parameters as $key => $value) {
+                $$key = $value;
+            }
+        }
+        // Use the internal buffer to parse the view file and return it as a string.
+        $path = $GLOBALS['config']['application']['root'] . '/view/' . $name;
+        ob_start();
+        require_once $path;
+        $view = ob_get_contents();
+        ob_end_clean();
+        return $view;
+    }
+
 
 }
 
