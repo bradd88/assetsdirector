@@ -40,7 +40,7 @@ function drawGraph(graph) {
     lineChart.textAlign = "right";
     lineChart.fillStyle = "grey";
     currentPosition = graph.yOrigin;
-    currentLabel = graph.yStart;
+    currentLabel = Number(graph.yStart);
     while (currentPosition > 0) {
         currentPosition -= Number(graph.yGridPixelIncrement);
         currentLabel += Number(graph.yGridValueIncrement);
