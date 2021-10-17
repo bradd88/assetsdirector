@@ -1,7 +1,8 @@
 <div class="table">
     <div class="tr">
         <div class="td">Date</div>
-        <div class="td">ID</div>
+        <div class="td">Order</div>
+        <div class="td">Transaction</div>
         <div class="td">Description</div>
         <div class="td">Type</div>
         <div class="td">Symbol</div>
@@ -20,6 +21,7 @@
     <div class="tr">
     <? endif ?>
         <div class="td"><?= $transaction->transactionDate ?></div>
+        <div class="td"><?= $transaction->orderId ?></div>
         <div class="td"><?= $transaction->transactionId ?></div>
         <div class="td"><?= $transaction->description ?></div>
         <div class="td"><?= $transaction->transactionSubType ?></div>
@@ -34,6 +36,7 @@
     <? endforeach ?>
 
     <div class="tr">
+        <div class="td">-</div>
         <div class="td">-</div>
         <div class="td">-</div>
         <div class="td">-</div>

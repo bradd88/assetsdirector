@@ -19,11 +19,11 @@ function filterTransactions($transactions, $transactionType, $assetType, $symbol
     return $transactions;
 }
 
-// Comparison function for quicksort. Sorts descending by transaction time, then by transaction id.
+// Comparison function for quicksort. Sorts descending by order ID, then by transaction ID.
 function sortTransactions($a, $b) {
-    $output = strtotime($a->transactionDate) <=> strtotime($b->transactionDate);
+    $output = $a->orderId <=> $b->orderId;
     if ($output == 0) {
-        $output = $b->transactionId <=> $a->transactionId;
+        $output = $a->transactionId <=> $b->transactionId;
     }
     return $output;
 }
