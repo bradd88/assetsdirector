@@ -61,23 +61,23 @@ class Page {
             case 'transactions':
                 // Retrieve transaction data and mark potential errors by looking for impossible transactions.
                 require_once $rootDir . '/model/logic/transactions.php';
-                $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-09-01T00:00:00+0000', '2021-10-02T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
+                $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
                 $transactionDataParsed = calculateOutstanding($transactionData);
                 $content = $this->getView('page/transactions.phtml', ['transactions' => $transactionDataParsed]);
                 break;
                 
-            case 'trades':               
+            case 'trades':
                 // Calculate trades using transaction data.
                 require_once $rootDir . '/model/logic/transactions.php';
                 require_once $rootDir . '/model/logic/trades.php';
-                $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-09-01T00:00:00+0000', '2021-10-02T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
-                $tradeData = calculatePL(createTrades($transactionData));
-                $table = $this->getView('page/trades.phtml', ['trades' => $tradeData]);
+
+                $transactions = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
+                $tradeList = new TradeList($transactions);
+                $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
 
                 // Calculate parameters from trade data and draw a graph using javascript.
                 require_once $rootDir . '/model/logic/graph.php';
-                $graphCoords = calculatePlCoordinates($tradeData);
-                $graphSettings = configureGraph($graphCoords, 1600, 800);
+                $graphSettings = configureGraph($tradeList->graphCoordinates, 1600, 800);
                 $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
 
                 $content = $graph . $table;
