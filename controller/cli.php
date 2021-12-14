@@ -8,6 +8,7 @@ class Cli {
     {
         // Save any arguments supplied.
         $options = [
+            "createGrant:",
             "updateTokens:",
             "updateTransactions:"
         ];
@@ -26,6 +27,12 @@ class Cli {
 
     public function exec()
     {
+
+        // Create a new api grant for the TDA API.
+        if (array_key_exists('createGrant', $this->arguments)) {
+            $this->createTdaApiGrant();
+        }
+
         // Update access and refresh tokens from the TDA API.
         if (array_key_exists('updateTokens', $this->arguments)) {
             $this->updateTdaApiTokens();
@@ -41,6 +48,47 @@ class Cli {
             $this->updateOrders();
         }
     }
+
+    private function createTdaApiGrant()
+    {
+        // Retrieve the permission code from the db.
+        $permissionCodeQuery = MySql::read('tda_api', 'type', 'permissionCode');
+        $permissionCode = $permissionCodeQuery[0]->string;
+
+        // Retrieve the consumer key from the db.
+        $consumerKeyQuery = MySql::read('tda_api', 'type', 'consumerKey');
+        $consumerKey = $consumerKeyQuery[0]->string;
+
+        // Retrieve the redirect URI from the db
+        $redirectUriQuery = MySql::read('tda_api', 'type', 'redirectUri');
+        $redirectUri = $redirectUriQuery[0]->string;
+
+        // Request the new grant.
+        $newGrant = TDAToken::grant($permissionCode, $consumerKey, $redirectUri);
+        if (isset($newGrant->error)) {
+            // Log failure.
+            $logMessage = 'Error creating new Grant: ' . $newGrant->error;
+            saveLog('tokens', $logMessage);
+        } else {
+            $newRefreshToken = $newGrant->refresh_token;
+            $newRefreshTokenExpiration = time() + $newGrant->refresh_token_expires_in - 86400;
+            $newAccessToken = $newGrant->access_token;
+            $newAccessTokenExpiration = time() + $newGrant->expires_in - 60;
+            MySql::update('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
+            MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
+            
+            if ($GLOBALS['config']['logs']['tokenSuccess'] === 'true') {
+                $logMessage = 'Created new API grant. Tokens Updated';
+                saveLog('tokens', $logMessage);
+            }
+        }
+    }
+
+
+    // TODO:
+    // Refresh token should be updated one day prior to expiration (if checked every day), or one week prior to expiration (if checked only on trading days).
+    // Access tokens should be updated one minute prior to expiration (If checked every 30 minutes).
+    // Code for tokens should be consolidated (DRY).
 
     private function updateTdaApiTokens()
     {
@@ -60,14 +108,14 @@ class Cli {
             // Updating the refresh token also updates the access token, so only call for an update of one or the other.
             if (time() >= $refreshTokenExpiration) {
                 // Retrieve both tokens.
-                $newRefreshTokenQuery = tdaRetrieveRefreshToken($refreshToken, $consumerKey);
+                $newRefreshTokenQuery = TDAToken::refresh($refreshToken, $consumerKey);
                 if (isset($newRefreshTokenQuery->error)) {
                     // Log failure.
                     $logMessage = 'Error updating Refresh Token: ' . $newRefreshTokenQuery->error;
                     saveLog('tokens', $logMessage);
                 } else {
                     $newRefreshToken = $newRefreshTokenQuery->refresh_token;
-                    $newRefreshTokenExpiration = time() + $newRefreshTokenQuery->refresh_token_expires_in - 60;
+                    $newRefreshTokenExpiration = time() + $newRefreshTokenQuery->refresh_token_expires_in - 86400;
                     $newAccessToken = $newRefreshTokenQuery->access_token;
                     $newAccessTokenExpiration = time() + $newRefreshTokenQuery->expires_in - 60;
                     
@@ -84,7 +132,7 @@ class Cli {
                 
             } else {
                 // Update just the access token.
-                $newAccessTokenQuery = tdaRetrieveAccessToken($refreshToken, $consumerKey);
+                $newAccessTokenQuery = TDAToken::access($refreshToken, $consumerKey);
                 
                 if (isset($newAccessTokenQuery->error)) {
                     // Log failure.
@@ -130,7 +178,7 @@ class Cli {
         MySql::truncate('transactions_today');
 
         // Retrieve transactions for the specified date range, and reverse the array so oldest transactions are entered first.
-        $transactions = tdaRetrieveTransactionHistory($accessToken, $accountNumber, $startDate, $endDate);
+        $transactions = TDAAccount::getTransactions($accessToken, $accountNumber, $startDate, $endDate);
         $transactions = array_reverse($transactions);
         // Iterate through the array, flatten each object, and store the data in the database.
         $transactionsUpdated = [];
