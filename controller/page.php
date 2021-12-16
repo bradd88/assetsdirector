@@ -27,15 +27,15 @@ class Page {
             $userId = MySql::verifyLogin($_POST['username'], $_POST['password']);
             if ($userId === FALSE) {
                 // Login unsuccessful, display the login page and record the failed attempt.
-                return $this->generate('login');
                 $logMessage = 'Failed Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'] . ' Pass: ' . $_POST['password'];
-                saveLog('logins', $logMessage);
+                saveLog('login_failure', $logMessage);
+                return $this->generate('login');
             } else {
                 // Login successful, display the requested page and record the login.
                 Session::login($userId);
-                return $this->generate($this->requested['page']);
                 $logMessage = 'Successful Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'];
-                saveLog('logins2', $logMessage);
+                saveLog('login_success', $logMessage);
+                return $this->generate($this->requested['page']);
             }
         }
     }

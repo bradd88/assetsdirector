@@ -16,7 +16,7 @@ function appendFile($filePath, $contents) {
 
 // Save a message to a log file.
 function saveLog($logName, $contents) {
-    if ($GLOBALS['config']['logs']['enabled'] == 'true') {
+    if ($GLOBALS['config']['logs']['enabled'] == 'true' && $GLOBALS['config']['logs'][$logName] == 'true') {
         $filePath = $GLOBALS['config']['logs']['path'] . '/' . $logName;
         $output = date("Y/m/d H:i:s") . ' - ' . $contents . PHP_EOL;
         appendFile($filePath, $output);

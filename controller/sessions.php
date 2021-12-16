@@ -29,7 +29,7 @@ class Session {
     public static function renew($id)
     {
         session_regenerate_id();
-        $_SESSION['expire'] = time() + $GLOBALS['config']['application']['loginTimeout'];
+        $_SESSION['expire'] = time() + $GLOBALS['config']['application']['login_timeout'];
         MySql::update('accounts', ['lastSeen' => time()], 'id', $id);
     }
 

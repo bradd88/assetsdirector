@@ -78,10 +78,7 @@ class Cli {
             MySql::update('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
             MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
             
-            if ($GLOBALS['config']['logs']['tokenSuccess'] === 'true') {
-                $logMessage = 'Generated brand new tokens.';
-                saveLog('tokens', $logMessage);
-            }
+            saveLog('tokens', 'Generated brand new tokens.');
         }
     }
 
@@ -118,11 +115,7 @@ class Cli {
                     MySql::update('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
                     MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
                     
-                    // Log success if enabled.
-                    if ($GLOBALS['config']['logs']['tokenSuccess'] === 'true') {
-                        $logMessage = 'Updated Refresh and Access Tokens.';
-                        saveLog('tokens', $logMessage);
-                    }
+                    saveLog('tokens', 'Updated Refresh and Access Tokens.');
                 }
                 
             } else {
@@ -140,19 +133,11 @@ class Cli {
                     // Update the db.
                     MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
                     
-                    // Log success if enabled.
-                    if ($GLOBALS['config']['logs']['tokenSuccess'] === 'true') {
-                        $logMessage = 'Updated Access Token.';
-                        saveLog('tokens', $logMessage);
-                    }
+                    saveLog('tokens', 'Updated Access Token.');
                 }
             }
         } else {
-            // Update log if token success logging is true.
-            if ($GLOBALS['config']['logs']['tokenSuccess'] === 'true') {
-                $logMessage = 'Tokens are not expired.';
-                saveLog('tokens', $logMessage);
-            }
+                saveLog('tokens', 'Tokens are not expired.');
         }
     }
 
