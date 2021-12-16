@@ -1,0 +1,8 @@
+<form target="_blank" action="https://auth.tdameritrade.com/auth" method="get">
+        <input type="hidden" name="response_type" value="code">
+        <input type="hidden" name="redirect_uri" value="<?= $redirectUri ?>">
+        <input type="hidden" name="client_id" value="<?= $consumerKey ?>@AMER.OAUTHAP">
+        <input type="submit" value="Grant API Permissions">
+</form>
+<br /><br />
+<span>Refresh Token Status: <?= $refreshTokenStatus ?></span>

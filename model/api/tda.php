@@ -35,8 +35,8 @@ class Curl {
 
 class TDAToken {
 
-    // Create a new token grant to allow creation of refresh tokens. The grant expires after 90 days.
-    public static function grant($permissionCode, $consumerKey, $redirectUri)
+    // Create a brand new refresh token using a permission code. This only needs to be run on first setup or when the current refresh token expired.
+    public static function create($permissionCode, $consumerKey, $redirectUri)
     {
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
         $vars = 'grant_type=authorization_code&refresh_token=&access_type=offline&code=' . urlencode($permissionCode) . '&client_id=' . urlencode($consumerKey) . '&redirect_uri=' . urlEncode($redirectUri);
@@ -45,7 +45,7 @@ class TDAToken {
         return $apiResponse;
     }
     
-    // Request a new Refresh Token from the TDA API (which allows requesting of Access Tokens) and return it as a string.
+    // Request a new Refresh Token from the TDA API (which allows requesting of Access Tokens) and return it as a string. This should be run before the current refresh token expires, to avoid the manual step of creating a permission code for a grant.
     public static function refresh($refreshToken, $consumerKey)
     {
         $url = "https://api.tdameritrade.com/v1/oauth2/token";

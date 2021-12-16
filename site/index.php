@@ -25,7 +25,10 @@ if ($cli->requested() === TRUE) {
 } else {
     Session::start();
     $page = new Page;
-    $page->requested = $_GET['page'] ?? 'home';
+    $page->requested = $_GET;
+    if (!isset($page->requested['page']) || $page->requested['page'] == 'login') {
+        $page->requested['page'] = 'home';
+    }
     echo $page->exec();
 }
 
