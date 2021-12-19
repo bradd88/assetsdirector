@@ -92,6 +92,7 @@ class TradeList {
 
     private function findTrades()
     {
+        $this->trades = [];
         $tradeTransactions = [];
         $outstanding = 0;
         foreach ($this->transactions as $transaction) {
@@ -118,21 +119,23 @@ class TradeList {
         $totalReturn = 0;
         $winTrades = 0;
         $coordinates = [];
-        foreach ($this->trades as &$trade) {
-            // Track returns and trades.
-            ($trade->return > 0) ? $winTrades++ : '';
-            $totalTrades++;
-    
-            // Keep a running total for trades.
-            $totalReturn = bcadd("$trade->return", "$totalReturn", 10);
-            $trade->runningPl = $totalReturn;
-            $winPercentage = bcdiv("$winTrades", "$totalTrades", 10);
-            $trade->runningWinRate = bcmul("$winPercentage", "100", 10);
+        if (count($this->trades) > 0) {
+            foreach ($this->trades as &$trade) {
+                // Track returns and trades.
+                ($trade->return > 0) ? $winTrades++ : '';
+                $totalTrades++;
+        
+                // Keep a running total for trades.
+                $totalReturn = bcadd("$trade->return", "$totalReturn", 10);
+                $trade->runningPl = $totalReturn;
+                $winPercentage = bcdiv("$winTrades", "$totalTrades", 10);
+                $trade->runningWinRate = bcmul("$winPercentage", "100", 10);
 
-            // Save coordinates for creating p/l graphs. [X Coordinate, Y Coordinate, Label]
-            $coordinates[] = [$totalTrades, $totalReturn, $trade->return];
+                // Save coordinates for creating p/l graphs. [X Coordinate, Y Coordinate, Label]
+                $coordinates[] = [$totalTrades, $totalReturn, $trade->return];
+            }
+            $this->graphCoordinates = $coordinates;
         }
-        $this->graphCoordinates = $coordinates;
     }
 
 }

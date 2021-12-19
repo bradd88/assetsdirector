@@ -3,10 +3,20 @@
 class Page {
 
     public $requested;
+    private $session;
+
+    public function __construct()
+    {
+        $this->requested = $_GET;
+        if (!isset($this->requested['page']) || $this->requested['page'] == 'login') {
+            $this->requested['page'] = 'home';
+        }
+        $this->session = new Session;
+    }
 
     public function exec()
     {
-        if (Session::loggedIn() === FALSE) {
+        if ($this->session->check() === FALSE) {
             return $this->requireLogin();
         } else {
             return $this->generate($this->requested['page']);
@@ -29,10 +39,10 @@ class Page {
                 // Login unsuccessful, display the login page and record the failed attempt.
                 $logMessage = 'Failed Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'] . ' Pass: ' . $_POST['password'];
                 saveLog('login_failure', $logMessage);
-                return $this->generate('login');
+                return $this->generate('login', 'Incorrect Username/Password.');
             } else {
                 // Login successful, display the requested page and record the login.
-                Session::login($userId);
+                $this->session->login($userId);
                 $logMessage = 'Successful Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'];
                 saveLog('login_success', $logMessage);
                 return $this->generate($this->requested['page']);
@@ -40,18 +50,18 @@ class Page {
         }
     }
 
-    private function generate($page)
+    private function generate($page, $message = NULL)
     {
         $rootDir = $GLOBALS['config']['application']['root'];
         switch ($page) {
             case 'login':
-                $message = 'Please Login';
+                $message = (isset($message)) ? $message : 'Please Login.' ;
                 $content = $this->getView('page/login.phtml', ['message' => $message, 'requested' => $this->requested['page']]);
                 break;
                 
             case 'logout':
-                Session::stop();
-                header("Location: ./login");
+                $this->session->stop();
+                header("Location: ./");
                 break;
                 
             case 'home':
@@ -61,26 +71,40 @@ class Page {
             case 'transactions':
                 // Retrieve transaction data and mark potential errors by looking for impossible transactions.
                 require_once $rootDir . '/model/logic/transactions.php';
-                $transactionData = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
-                $transactionDataParsed = calculateOutstanding($transactionData);
-                $content = $this->getView('page/transactions.phtml', ['transactions' => $transactionDataParsed]);
+                $transactionsData = MySql::read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
+                if (count($transactionsData) > 0) {
+                    $transactionDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
+                    $transactionDataParsed = calculateOutstanding($transactionDataFiltered);
+                    $content = $this->getView('page/transactions.phtml', ['transactions' => $transactionDataParsed]);
+                } else {
+                    $content = $this->getView('page/transactions.phtml', ['transactions' => []]);
+                }
                 break;
                 
             case 'trades':
                 // Calculate trades using transaction data.
                 require_once $rootDir . '/model/logic/transactions.php';
                 require_once $rootDir . '/model/logic/trades.php';
+                $transactionsData = MySql::read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
+                if (count($transactionsData) > 0) {
+                    $transactionsDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
+                    $tradeList = new TradeList($transactionsDataFiltered);
+                    if (count($tradeList->trades) > 0) {
+                        $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
 
-                $transactions = filterTransactions(MySql::read('transactions', 'transactionDate', NULL, '2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000'), 'TRADE', 'EQUITY', 'AMD');
-                $tradeList = new TradeList($transactions);
-                $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
+                        // Calculate parameters from trade data and draw a graph using javascript.
+                        require_once $rootDir . '/model/logic/graph.php';
+                        $graphSettings = configureGraph($tradeList->graphCoordinates, 1600, 800);
+                        $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
 
-                // Calculate parameters from trade data and draw a graph using javascript.
-                require_once $rootDir . '/model/logic/graph.php';
-                $graphSettings = configureGraph($tradeList->graphCoordinates, 1600, 800);
-                $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
+                        $content = $graph . $table;
+                    } else {
+                        $content = $this->getView('page/trades.phtml', ['trades' => []]);
+                    }
+                } else {
+                    $content = $this->getView('page/trades.phtml', ['trades' => []]);
+                }
 
-                $content = $graph . $table;
                 break;
                 
             case 'summary':
@@ -90,22 +114,22 @@ class Page {
 
             case 'account':
                 // Retrieve the account information.
-                $consumerKeyQuery = MySql::read('tda_api', 'type', 'consumerKey');
+                $consumerKeyQuery = MySql::read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'consumerKey']);
                 $consumerKey = $consumerKeyQuery[0]->string;
-                $redirectUriQuery = MySql::read('tda_api', 'type', 'redirectUri');
+                $redirectUriQuery = MySql::read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'redirectUri']);
                 $redirectUri = $redirectUriQuery[0]->string;
 
                 // If a code has been submitted, enter it into the db.
                 if (isset($_GET['code'])) {
                     $newPermissionCode = filter_var($_GET['code'], FILTER_SANITIZE_STRING);
-                    MySql::update('tda_api', ['string' => $newPermissionCode], 'type', 'permissionCode');
-                    Cli::createTdaTokens();
+                    MySql::update('tda_api', ['type' => 'permissionCode'], ['string' => $newPermissionCode]);
+                    Cli::createTdaTokens($this->session->accountId);
                     // Cleanup the permission code, since it's one time use.
-                    MySql::update('tda_api', ['string' => ''], 'type', 'permissionCode');
+                    MySql::update('tda_api', ['type' => 'permissionCode'], ['string' => '']);
                 }
 
                 // Retrieve refresh token status.
-                $refreshTokenQuery = MySql::read('tda_api', 'type', 'refreshToken');
+                $refreshTokenQuery = MySql::read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'refreshToken']);
                 $refreshTokenExpiration = $refreshTokenQuery[0]->expiration;
                 $refreshTokenStatus = ($refreshTokenExpiration > time()) ? 'Good' : 'Bad';
 

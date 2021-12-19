@@ -2,7 +2,9 @@
 
 class Session {
     
-    public static function start()
+    public $accountId;
+
+    public function __construct()
     {
         if (session_status() === PHP_SESSION_NONE) {
             $cookieParams = session_get_cookie_params();
@@ -14,41 +16,37 @@ class Session {
         }
     }
 
-    public static function stop()
+    public function login($id)
     {
-        session_unset();
-        session_destroy();
-    }
-
-    public static function login($id)
-    {
-        $_SESSION['userId'] = $id;
-        Self::renew($id);
-    }
-
-    public static function renew($id)
-    {
-        session_regenerate_id();
+        $this->accountId = $id;
+        $_SESSION['accountId'] = $this->accountId;
         $_SESSION['expire'] = time() + $GLOBALS['config']['application']['login_timeout'];
-        MySql::update('accounts', ['lastSeen' => time()], 'id', $id);
+        MySql::update('accounts', ['account_id' => $this->accountId,], ['lastSeen' => time()]);
+        session_regenerate_id();
     }
 
-    public static function loggedIn()
+    public function check()
     {
-        if (isset($_SESSION['userId'])) {
-            if (time() > $_SESSION['expire']) {
-                // Cleanup session if it's expired.
-                Self::stop();
-                return FALSE;
-            } else {
-                // Renew session if it's not expired.
-                Self::renew($_SESSION['userId']);
+        if (isset($_SESSION['accountId'])) {
+            if (time() < $_SESSION['expire']) {
+                // Login the user if their session isn't expired.
+                $this->login($_SESSION['accountId']);
                 return TRUE;
+            } else {
+                // Cleanup session if it's expired.
+                $this->stop();
+                return FALSE;
             }
         } else {
             // No account logged in.
             return FALSE;
         }
+    }
+
+    public function stop()
+    {
+        session_unset();
+        session_destroy();
     }
 
 }

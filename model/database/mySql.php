@@ -4,6 +4,7 @@ class MySql {
 
     private static $connection;
 
+    // Create a new database connection using information from the config file.
     public static function connect()
     {
         $servername = $GLOBALS['config']['mySql']['host'];
@@ -21,6 +22,7 @@ class MySql {
         self::$connection->close();
     }
 
+    // Run a supplied query and return the appropriate information from the results.
     private static function query($queryType, $queryString)
     {
         // Perform the requested query and return the relevant information from the response.
@@ -38,10 +40,11 @@ class MySql {
         }
     }
 
+    // Create a new user in the database using a prepared statement.
     public static function createUser($username, $password)
     {
         // Check if the username already exists.
-        $checkUsername = self::$connection->prepare('SELECT `id` FROM `accounts` WHERE `username` = ?');
+        $checkUsername = self::$connection->prepare('SELECT `account_id` FROM `accounts` WHERE `username` = ?');
         $checkUsername->bind_param('s', $username);
         $checkUsername->execute();
         $checkUsername->store_result();
@@ -59,25 +62,26 @@ class MySql {
         }
     }
 
+    // Verify user credentials using a prepared statement.
     public static function verifyLogin($username, $password)
     {
         // Retrieve the account information.
-        $verifyLogin = self::$connection->prepare('SELECT `id`, `hash` FROM `accounts` WHERE `username` = ?');
+        $verifyLogin = self::$connection->prepare('SELECT `account_id`, `hash` FROM `accounts` WHERE `username` = ?');
         $verifyLogin->bind_param('s', $username);
         $verifyLogin->execute();
         $verifyLogin->store_result();
 
         // If an account matching the username exists, then store the account ID and password hash.
         if ($verifyLogin->num_rows === 1) {
-            $id = '';
+            $account_id = '';
             $hash = '';
-            $verifyLogin->bind_result($id, $hash);
+            $verifyLogin->bind_result($account_id, $hash);
             $verifyLogin->fetch();
             
             // Verify the supplied password matches the account password hash.
             if (password_verify($password, $hash) === TRUE) {
                 // Correct password
-                return $id;
+                return $account_id;
             } else {
                 // Incorrect password.
                 return FALSE;
@@ -88,61 +92,94 @@ class MySql {
         }
     }
 
+        // Convert an array into a Columns/Values string for use in the WHERE, WHERE/BETWEEN, SET, or INSERT INTO/VALUES portions of a query.
+        private static function arrayToQueryString($array, $type)
+        {
+            // Set the appropriate string to glue segments together.
+            if ($type == 'where') {
+                $concatenator = ' AND ';
+            } else {
+                $concatenator = ', ';
+            }
+
+            // Use the key/value pairs from the array to create the string.
+            $string = '';
+            foreach ($array as $key => $value) {
+                if ($type == 'where') {
+                    if (!is_array($value)) {
+                        $content = '`' . $key . '` = \'' . $value . '\'';
+                    } else {
+                        $content = '`' . $key . '` BETWEEN \'' . $value[0] . '\' AND \'' . $value[1] . '\'';
+                    }
+                }elseif ($type == 'set') {
+                    $content = '`' . $key . '` = \'' . $value . '\'';
+                } elseif ($type == 'insertColumn') {
+                    $content = '`' . $key . '`';
+                } elseif ($type == 'insertValue') {
+                    $content = '\'' . $value . '\'';
+                }
+                $string .= $content;
+                if ($key !== array_key_last($array)) {
+                    $string .= $concatenator;
+                }
+            }
+            return $string;
+        }
+
+    // Create rows in the database from an array of columns and values.
     public static function create($tableName, $insertArray)
     {
-        // Convert the insertArray key/value pairs into column/value strings for the query.
-        $columnsOutput = '';
-        $valuesOutput = '';
-        foreach ($insertArray as $key => $value) {
-            if ($key === array_key_first($insertArray)) {
-                $columnsOutput .= '(`' . $key . '`, ';
-                $valuesOutput .= '(\'' . $value . '\', ';
-            } elseif ($key === array_key_last($insertArray)) {
-                $columnsOutput .= '`' . $key . '`)';
-                $valuesOutput .= '\'' . $value . '\')';
-            } else {
-                $columnsOutput .= '`' . $key . '`, ';
-                $valuesOutput .= '\'' . $value . '\', ';
-            }
-        }
-        $queryString = 'INSERT INTO `' . $tableName . '` ' . $columnsOutput . ' VALUES ' . $valuesOutput . ' ON DUPLICATE KEY UPDATE `id`=`id`';
+        $columnString = self::arrayToQueryString($insertArray, 'insertColumn');
+        $valueString = self::arrayToQueryString($insertArray, 'insertValue');
+        $queryString = 'INSERT INTO `' . $tableName . '` (' . $columnString . ') VALUES (' . $valueString . ') ON DUPLICATE KEY UPDATE `id`=`id`';
         return self::query('INSERT', $queryString);
     }
 
-    public static function read($tableName, $whereColumn = NULL, $whereValue = NULL, $betweenStart = NULL, $betweenEnd = NULL)
+    /**
+     * MySQL Read
+     * Read rows from the database using selected column values.
+     * 
+     * E.G. The following code:
+     *     MySql::read('accounts', ['test' => [89675, 456787], 'herp' => 'lerp'], 'Price DESC')
+     * Will run the following query:
+     *     SELECT * FROM accounts WHERE test BETWEEN 89675 AND 456787 AND herp = lerp ORDER BY Price DESC
+     * 
+     * @param string $tableName
+     * @param array $whereArray The Key/Value pairs of the $whereArray are mapped to database Column/Value pairs. If a Value is input as an array then a BETWEEN search will be used.
+     * @param string $orderBy
+     * @return array Returns an array(table) of objects(rows).
+     */
+    public static function read($tableName, $whereArray = NULL, $orderBy = NULL)
     {
-        // Set the query string.
-        if ($betweenStart !== NULL && $betweenEnd !== NULL) {
-            $queryString = 'SELECT * FROM `' . $tableName . '` WHERE `' . $whereColumn . '` BETWEEN \'' . $betweenStart . '\' AND \'' . $betweenEnd . '\'';
-        } elseif ($whereColumn !== NULL && $whereValue !== NULL) {
-            $queryString = 'SELECT * FROM `' . $tableName . '` WHERE `' . $whereColumn . '` = \'' . $whereValue . '\'';
-        } else {
-            $queryString = 'SELECT * FROM `' . $tableName . '`';
+        $queryString = 'SELECT * FROM `' . $tableName . '`';
+        if ($whereArray !== NULL) {
+            $whereString = self::arrayToQueryString($whereArray, 'where');
+            $queryString .= ' WHERE ' . $whereString;
+        }
+        if ($orderBy !== NULL) {
+            $queryString .= ' ORDER BY ' . $orderBy;
         }
         return self::query('SELECT', $queryString);
     }
 
-    public static function update($tableName, $setArray, $whereColumn, $whereValue)
+    // Update rows with new values using selected column values.
+    public static function update($tableName, $whereArray, $setArray)
     {
-        // Convert the setArray key/value pairs into a column/value string for the query.
-        $setString = '';
-        foreach ($setArray as $key => $value) {
-            if ($key === array_key_last($setArray)) {
-                $setString .= '`' . $key . '` = \'' . $value . '\'';
-            } else {
-                $setString .= '`' . $key . '` = \'' . $value . '\', ';
-            }
-        }
-        $queryString = 'UPDATE `' . $tableName . '` SET ' . $setString . ' WHERE `' . $whereColumn . '` = \'' . $whereValue . '\'';
+        $whereString = self::arrayToQueryString($whereArray, 'where');
+        $setString = self::arrayToQueryString($setArray, 'set');
+        $queryString = 'UPDATE `' . $tableName . '` SET ' . $setString . ' WHERE ' . $whereString;
         return self::query('UPDATE', $queryString);
     }
 
-    public static function delete($tableName, $whereColumn, $whereValue)
+    // Delete selected rows from the database using selected column values.
+    public static function delete($tableName, $whereArray)
     {
-        $queryString = 'DELETE FROM `' . $tableName . '` WHERE `' . $whereColumn . '` = \'' . $whereValue . '\'';
+        $whereString = self::arrayToQueryString($whereArray, ' AND ');
+        $queryString = 'DELETE FROM `' . $tableName . '` WHERE ' . $whereString;
         return self::query('DELETE', $queryString);
     }
 
+    // Delete an entire selected table from the database.
     public static function truncate($tableName)
     {
         $queryString = 'TRUNCATE `' . $GLOBALS['config']['mySql']['database'] . '`.`' . $tableName . '`';

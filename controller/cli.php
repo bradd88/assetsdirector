@@ -8,59 +8,47 @@ class Cli {
     {
         // Save any arguments supplied.
         $options = [
-            "createTokens:",
             "updateTokens:",
             "updateTransactions:"
         ];
         $this->arguments = getopt('', $options);
     }
 
-    public function requested()
-    {
-        // Check if arguments were supplied.
-        if (count($this->arguments) > 0) {
-            return TRUE;
-        } else {
-            return FALSE;
-        }
-    }
-
     public function exec()
     {
+        if (count($this->arguments) > 0) {
+            $accounts = MySql::read('accounts');
+            foreach ($accounts as $account) {
+                // Update access and refresh tokens from the TDA API.
+                if (array_key_exists('updateTokens', $this->arguments)) {
+                    $this->updateTdaTokens($account->account_id);
+                }
+                
+                // Download new transactions from the TDA API.
+                if (array_key_exists('updateTransactions', $this->arguments)) {
+                    $this->updateTransactions($account->accound_id, '2021-10-01', '2021-10-06');
+                }
 
-        // Create a new api grant for the TDA API.
-        if (array_key_exists('createTokens', $this->arguments)) {
-            $this->createTdaTokens();
-        }
-
-        // Update access and refresh tokens from the TDA API.
-        if (array_key_exists('updateTokens', $this->arguments)) {
-            $this->updateTdaTokens();
-        }
-        
-        // Download new transactions from the TDA API.
-        if (array_key_exists('updateTransactions', $this->arguments)) {
-            $this->updateTransactions('2021-10-01', '2021-10-06');
-        }
-
-        // Download new orders from the TDA API.
-        if (array_key_exists('updateOrders', $this->arguments)) {
-            $this->updateOrders();
+                // Download new orders from the TDA API.
+                if (array_key_exists('updateOrders', $this->arguments)) {
+                    $this->updateOrders();
+                }
+            }
         }
     }
 
-    public static function createTdaTokens()
+    public static function createTdaTokens($accountId)
     {
         // Retrieve the permission code from the db.
-        $permissionCodeQuery = MySql::read('tda_api', 'type', 'permissionCode');
+        $permissionCodeQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'permissionCode']);
         $permissionCode = $permissionCodeQuery[0]->string;
 
         // Retrieve the consumer key from the db.
-        $consumerKeyQuery = MySql::read('tda_api', 'type', 'consumerKey');
+        $consumerKeyQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'consumerKey']);
         $consumerKey = $consumerKeyQuery[0]->string;
 
         // Retrieve the redirect URI from the db
-        $redirectUriQuery = MySql::read('tda_api', 'type', 'redirectUri');
+        $redirectUriQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'redirectUri']);
         $redirectUri = $redirectUriQuery[0]->string;
 
         // Request the new tokens.
@@ -75,24 +63,24 @@ class Cli {
             $newRefreshTokenExpiration = time() + $newTokens->refresh_token_expires_in - 86400;
             $newAccessToken = $newTokens->access_token;
             $newAccessTokenExpiration = time() + $newTokens->expires_in - 60;
-            MySql::update('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
-            MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
+            MySql::update('tda_api', ['type' => 'refreshToken'], ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration]);
+            MySql::update('tda_api', ['type' => 'accessToken'], ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration]);
             
             saveLog('tokens', 'Generated brand new tokens.');
         }
     }
 
-    private function updateTdaTokens()
+    private function updateTdaTokens($accountId)
     {
         // Retrieve the consumer key from the db.
-        $consumerKeyQuery = MySql::read('tda_api', 'type', 'consumerKey');
+        $consumerKeyQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'consumerKey']);
         $consumerKey = $consumerKeyQuery[0]->string;
         
         // Get the current Refresh Token and access tokens.
-        $refreshTokenQuery = MySql::read('tda_api', 'type', 'refreshToken');
+        $refreshTokenQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'refreshToken']);
         $refreshToken = $refreshTokenQuery[0]->string;
         $refreshTokenExpiration = $refreshTokenQuery[0]->expiration;
-        $accessTokenQuery = MySql::read('tda_api', 'type', 'accessToken');
+        $accessTokenQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'accessToken']);
         $accessTokenExpiration = $accessTokenQuery[0]->expiration;
         
         // Only update tokens if they are about to expire.
@@ -112,8 +100,8 @@ class Cli {
                     $newAccessTokenExpiration = time() + $newRefreshTokenQuery->expires_in - 60;
                     
                     // Update the db with both new tokens.
-                    MySql::update('tda_api', ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration], 'type', 'refreshToken');
-                    MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
+                    MySql::update('tda_api', ['type' => 'refreshToken'], ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration]);
+                    MySql::update('tda_api', ['type' => 'accessToken'], ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration]);
                     
                     saveLog('tokens', 'Updated Refresh and Access Tokens.');
                 }
@@ -131,7 +119,7 @@ class Cli {
                     $newAccessTokenExpiration = time() + $newAccessTokenQuery->expires_in - 60;
                     
                     // Update the db.
-                    MySql::update('tda_api', ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration], 'type', 'accessToken');
+                    MySql::update('tda_api', ['type' => 'accessToken'], ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration]);
                     
                     saveLog('tokens', 'Updated Access Token.');
                 }
@@ -141,7 +129,7 @@ class Cli {
         }
     }
 
-    private function updateTransactions($startDate = NULL, $endDate = NULL)
+    private function updateTransactions($accountId, $startDate = NULL, $endDate = NULL)
     {
         // If no date range is specified then default to today.
         $today = date("Y-m-d");
@@ -149,9 +137,9 @@ class Cli {
         $endDate = $endDate ?? $today;
         
         // Get the access token and account number from the db.
-        $accessTokenQuery = MySql::read('tda_api', 'type', 'accessToken');
+        $accessTokenQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'accessToken']);
         $accessToken = $accessTokenQuery[0]->string;
-        $accountNumberQuery = MySql::read('tda_api', 'type', 'accountNumber');
+        $accountNumberQuery = MySql::read('tda_api', ['account_id' => $accountId, 'type' => 'accountNumber']);
         $accountNumber = $accountNumberQuery[0]->string;
         
         // Clear the temporary table used for pending transactions.
