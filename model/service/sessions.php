@@ -1,10 +1,21 @@
 <?php 
 
-class Session {
+class Session
+{
+    
+    private MySql $mySql;
+    private object $appSettings;
     
     public $accountId;
 
-    public function __construct()
+    public function __construct(MySql $mySql, Config $config)
+    {
+        $this->mySql = $mySql;
+        $this->appSettings = $config->getSettings('application');
+        $this->start();
+    }
+
+    private function start()
     {
         if (session_status() === PHP_SESSION_NONE) {
             $cookieParams = session_get_cookie_params();
@@ -20,8 +31,8 @@ class Session {
     {
         $this->accountId = $id;
         $_SESSION['accountId'] = $this->accountId;
-        $_SESSION['expire'] = time() + $GLOBALS['config']['application']['login_timeout'];
-        MySql::update('accounts', ['account_id' => $this->accountId,], ['lastSeen' => time()]);
+        $_SESSION['expire'] = time() + $this->appSettings->login_timeout;
+        $this->mySql->update('accounts', ['account_id' => $this->accountId,], ['lastSeen' => time()]);
         session_regenerate_id();
     }
 

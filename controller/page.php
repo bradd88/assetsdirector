@@ -1,62 +1,70 @@
 <?php 
 
-class Page {
+class Page
+{
 
-    public $requested;
-    private $session;
+    private object $appSettings;
+    private MySql $mySql;
+    private Session $session;
+    private Log $log;
+    private Request $request;
+    private Cli $cli;
 
-    public function __construct()
+    public function __construct(Config $config, MySql $mySql, Session $session, Log $log, Request $request, Cli $cli)
     {
-        $this->requested = $_GET;
-        if (!isset($this->requested['page']) || $this->requested['page'] == 'login') {
-            $this->requested['page'] = 'home';
-        }
-        $this->session = new Session;
+        $this->appSettings = $config->getSettings('application');
+        $this->mySql = $mySql;
+        $this->session = $session;
+        $this->log = $log;
+        $this->request = $request;
+        $this->cli = $cli;
     }
 
     public function exec()
     {
+        if (!isset($this->request->get->page) || $this->request->get->page === 'login') {
+            $this->request->get->page = 'home';
+        }
         if ($this->session->check() === FALSE) {
             return $this->requireLogin();
         } else {
-            return $this->generate($this->requested['page']);
+            return $this->generate($this->request->get->page);
         }
     }
 
     private function requireLogin()
     {
         // User attempting to access a page when not logged in.
-        if (!isset($_POST['username']) && !isset($_POST['password'])) {
+        if (!isset($this->request->post->username) && !isset($this->request->post->password)) {
             // Display login page.
             return $this->generate('login');
         }
 
         // User attempting to login.
-        if (isset($_POST['username']) && isset($_POST['password'])) {
+        if (isset($this->request->post->username) && isset($this->request->post->password)) {
             // Verify account/password supplied are correct.
-            $userId = MySql::verifyLogin($_POST['username'], $_POST['password']);
+            $userId = $this->mySql->verifyLogin($this->request->post->username, $this->request->post->password);
             if ($userId === FALSE) {
                 // Login unsuccessful, display the login page and record the failed attempt.
-                $logMessage = 'Failed Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'] . ' Pass: ' . $_POST['password'];
-                saveLog('login_failure', $logMessage);
+                $logMessage = 'Failed Login - IP: ' . $this->request->server->REMOTE_ADDR . ' User: ' . $this->request->post->username . ' Pass: ' . $this->request->post->password;
+                $this->log->save('login_failure', $logMessage);
                 return $this->generate('login', 'Incorrect Username/Password.');
             } else {
                 // Login successful, display the requested page and record the login.
                 $this->session->login($userId);
-                $logMessage = 'Successful Login - IP: ' . $_SERVER['REMOTE_ADDR'] . ' User: ' . $_POST['username'];
-                saveLog('login_success', $logMessage);
-                return $this->generate($this->requested['page']);
+                $logMessage = 'Successful Login - IP: ' . $this->request->server->REMOTE_ADDR . ' User: ' . $this->request->post->username;
+                $this->log->save('login_success', $logMessage);
+                return $this->generate($this->request->get->page);
             }
         }
     }
 
     private function generate($page, $message = NULL)
     {
-        $rootDir = $GLOBALS['config']['application']['root'];
         switch ($page) {
             case 'login':
                 $message = (isset($message)) ? $message : 'Please Login.' ;
-                $content = $this->getView('page/login.phtml', ['message' => $message, 'requested' => $this->requested['page']]);
+                $content = $this->getView('page/login.phtml', ['message' => $message, 'requested' => $this->request->get->page]);
                 break;
                 
             case 'logout':
@@ -70,8 +78,8 @@ class Page {
                 
             case 'transactions':
                 // Retrieve transaction data and mark potential errors by looking for impossible transactions.
-                require_once $rootDir . '/model/logic/transactions.php';
-                $transactionsData = MySql::read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
+                require_once $this->appSettings->rootDir . '/model/logic/transactions.php';
+                $transactionsData = $this->mySql->read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
                 if (count($transactionsData) > 0) {
                     $transactionDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
                     $transactionDataParsed = calculateOutstanding($transactionDataFiltered);
@@ -83,9 +91,9 @@ class Page {
                 
             case 'trades':
                 // Calculate trades using transaction data.
-                require_once $rootDir . '/model/logic/transactions.php';
-                require_once $rootDir . '/model/logic/trades.php';
-                $transactionsData = MySql::read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
+                require_once $this->appSettings->rootDir . '/model/logic/transactions.php';
+                require_once $this->appSettings->rootDir . '/model/logic/trades.php';
+                $transactionsData = $this->mySql->read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
                 if (count($transactionsData) > 0) {
                     $transactionsDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
                     $tradeList = new TradeList($transactionsDataFiltered);
@@ -93,7 +101,7 @@ class Page {
                         $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
 
                         // Calculate parameters from trade data and draw a graph using javascript.
-                        require_once $rootDir . '/model/logic/graph.php';
+                        require_once $this->appSettings->rootDir . '/model/logic/graph.php';
                         $graphSettings = configureGraph($tradeList->graphCoordinates, 1600, 800);
                         $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
 
@@ -108,28 +116,28 @@ class Page {
                 break;
                 
             case 'summary':
-                //require_once $rootDir . '/view/page/summary.php';
+                //require_once $this->appSettings->rootDir . '/view/page/summary.php';
                 $content = $this->getView('page/summary.phtml');
                 break;
 
             case 'account':
                 // Retrieve the account information.
-                $consumerKeyQuery = MySql::read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'consumerKey']);
+                $consumerKeyQuery = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'consumerKey']);
                 $consumerKey = $consumerKeyQuery[0]->string;
-                $redirectUriQuery = MySql::read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'redirectUri']);
+                $redirectUriQuery = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'redirectUri']);
                 $redirectUri = $redirectUriQuery[0]->string;
 
                 // If a code has been submitted, enter it into the db.
-                if (isset($_GET['code'])) {
-                    $newPermissionCode = filter_var($_GET['code'], FILTER_SANITIZE_STRING);
-                    MySql::update('tda_api', ['type' => 'permissionCode'], ['string' => $newPermissionCode]);
-                    Cli::createTdaTokens($this->session->accountId);
+                if (isset($this->getRequest->code)) {
+                    $newPermissionCode = filter_var($this->getRequest->code, FILTER_SANITIZE_STRING);
+                    $this->mySql->update('tda_api', ['type' => 'permissionCode'], ['string' => $newPermissionCode]);
+                    $this->cli->createTdaTokens($this->session->accountId);
                     // Cleanup the permission code, since it's one time use.
-                    MySql::update('tda_api', ['type' => 'permissionCode'], ['string' => '']);
+                    $this->mySql->update('tda_api', ['type' => 'permissionCode'], ['string' => '']);
                 }
 
                 // Retrieve refresh token status.
-                $refreshTokenQuery = MySql::read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'refreshToken']);
+                $refreshTokenQuery = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'refreshToken']);
                 $refreshTokenExpiration = $refreshTokenQuery[0]->expiration;
                 $refreshTokenStatus = ($refreshTokenExpiration > time()) ? 'Good' : 'Bad';
 
@@ -159,7 +167,7 @@ class Page {
             }
         }
         // Use the internal buffer to parse the view file and return it as a string.
-        $path = $GLOBALS['config']['application']['root'] . '/view/' . $name;
+        $path = $this->appSettings->rootDir . '/view/' . $name;
         ob_start();
         require_once $path;
         $view = ob_get_contents();
