@@ -121,27 +121,19 @@ class Page
                 break;
 
             case 'account':
-                // Retrieve the account information.
-                $consumerKeyQuery = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'consumerKey']);
-                $consumerKey = $consumerKeyQuery[0]->string;
-                $redirectUriQuery = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'redirectUri']);
-                $redirectUri = $redirectUriQuery[0]->string;
 
                 // If a code has been submitted, enter it into the db.
                 if (isset($this->getRequest->code)) {
-                    $newPermissionCode = filter_var($this->getRequest->code, FILTER_SANITIZE_STRING);
-                    $this->mySql->update('tda_api', ['type' => 'permissionCode'], ['string' => $newPermissionCode]);
+                    $newPermissionCode = htmlspecialchars($this->getRequest->code, ENT_QUOTES);
+                    $this->mySql->update('tda_api', ['account_id' => $this->session->accountId], ['permissionCode' => $newPermissionCode]);
                     $this->cli->createTdaTokens($this->session->accountId);
-                    // Cleanup the permission code, since it's one time use.
-                    $this->mySql->update('tda_api', ['type' => 'permissionCode'], ['string' => '']);
                 }
 
-                // Retrieve refresh token status.
-                $refreshTokenQuery = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId, 'type' => 'refreshToken']);
-                $refreshTokenExpiration = $refreshTokenQuery[0]->expiration;
-                $refreshTokenStatus = ($refreshTokenExpiration > time()) ? 'Good' : 'Bad';
+                // Get the refresh token status
+                $accountApiInfo = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId])[0];
+                $refreshTokenStatus = ($accountApiInfo->refreshTokenExpiration > time()) ? 'Current' : 'Expired';
 
-                $content = $this->getView('page/account.phtml', ['consumerKey' => $consumerKey, 'redirectUri' => $redirectUri, 'refreshTokenStatus' => $refreshTokenStatus]);
+                $content = $this->getView('page/account.phtml', ['consumerKey' => $accountApiInfo->consumerKey, 'redirectUri' => $accountApiInfo->redirectUri, 'refreshTokenStatus' => $refreshTokenStatus]);
 
                 break;
             

@@ -6,6 +6,7 @@ class Cli {
     private Log $log;
     private TdaApi $tdaApi;
     private array $arguments;
+    private object $accountApiInfo;
 
     public function __construct(MySql $mySql, Log $log, TdaApi $tdaApi)
     {
@@ -25,6 +26,8 @@ class Cli {
         if (count($this->arguments) > 0) {
             $accounts = $this->mySql->read('accounts');
             foreach ($accounts as $account) {
+                $this->accountApiInfo = $this->mySql->read('tda_api', ['account_id' => $account->account_id])[0];
+
                 // Update access and refresh tokens from the TDA API.
                 if (array_key_exists('updateTokens', $this->arguments)) {
                     $this->updateTdaTokens($account->account_id);
@@ -43,147 +46,97 @@ class Cli {
         }
     }
 
+    /** Create brand new Refresh and Access tokens using a Permission Code. */
     public function createTdaTokens(string $accountId)
     {
-        // Retrieve the permission code from the db.
-        $permissionCodeQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'permissionCode']);
-        $permissionCode = $permissionCodeQuery[0]->string;
-
-        // Retrieve the consumer key from the db.
-        $consumerKeyQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'consumerKey']);
-        $consumerKey = $consumerKeyQuery[0]->string;
-
-        // Retrieve the redirect URI from the db
-        $redirectUriQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'redirectUri']);
-        $redirectUri = $redirectUriQuery[0]->string;
-
-        // Request the new tokens.
-        $newTokens = $this->tdaApi->newTokens($permissionCode, $consumerKey, $redirectUri);
+        $newTokens = $this->tdaApi->newTokens($this->accountApiInfo->permissionCode, $this->accountApiInfo->consumerKey, $this->accountApiInfo->redirectUri);
         if (isset($newTokens->error)) {
-            // Log failure.
-            $logMessage = 'Error generating new tokens: ' . $newTokens->error;
-            $this->log->save('tokens', $logMessage);
+            $this->log->save('tokens', 'Error generating new tokens: ' . $newTokens->error);
         } else {
-            // Save the new tokens to the db.
-            $newRefreshToken = $newTokens->refresh_token;
             $newRefreshTokenExpiration = time() + $newTokens->refresh_token_expires_in - 86400;
-            $newAccessToken = $newTokens->access_token;
             $newAccessTokenExpiration = time() + $newTokens->expires_in - 60;
-            $this->mySql->update('tda_api', ['type' => 'refreshToken'], ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration]);
-            $this->mySql->update('tda_api', ['type' => 'accessToken'], ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration]);
-            
+            $this->mySql->update('tda_api', ['account_id' => $accountId], [
+                'refreshToken' => $newTokens->refresh_token,
+                'refreshTokenExpiration' => $newRefreshTokenExpiration,
+                'accessToken' => $newTokens->access_token,
+                'accessTokenExpiration' => $newAccessTokenExpiration
+            ]);
             $this->log->save('tokens', 'Generated brand new tokens.');
         }
     }
 
+    /** Update and save expired tokens. */
     private function updateTdaTokens(string $accountId)
     {
-        // Retrieve the consumer key from the db.
-        $consumerKeyQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'consumerKey']);
-        $consumerKey = $consumerKeyQuery[0]->string;
-        
-        // Get the current Refresh Token and access tokens.
-        $refreshTokenQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'refreshToken']);
-        $refreshToken = $refreshTokenQuery[0]->string;
-        $refreshTokenExpiration = $refreshTokenQuery[0]->expiration;
-        $accessTokenQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'accessToken']);
-        $accessTokenExpiration = $accessTokenQuery[0]->expiration;
-        
-        // Only update tokens if they are about to expire.
-        if (time() >= $accessTokenExpiration) {
-            // Updating the refresh token also updates the access token, so only call for an update of one or the other.
-            if (time() >= $refreshTokenExpiration) {
-                // Retrieve both tokens.
-                $newRefreshTokenQuery = $this->tdaApi->refreshToken($refreshToken, $consumerKey);
+        if (time() < $this->accountApiInfo->accessTokenExpiration) {
+            $this->log->save('tokens', 'Tokens are not expired.');
+        } else {
+            if (time() >= $this->accountApiInfo->refreshTokenExpiration) {
+                // Refresh token is expired. Update both Refresh and Access tokens.
+                $newRefreshTokenQuery = $this->tdaApi->refreshToken($this->accountApiInfo->refreshToken, $this->accountApiInfo->consumerKey);
                 if (isset($newRefreshTokenQuery->error)) {
-                    // Log failure.
-                    $logMessage = 'Error updating Refresh Token: ' . $newRefreshTokenQuery->error;
-                    $this->log->save('tokens', $logMessage);
+                    $this->log->save('tokens', 'Error updating Refresh Token: ' . $newRefreshTokenQuery->error);
                 } else {
-                    $newRefreshToken = $newRefreshTokenQuery->refresh_token;
                     $newRefreshTokenExpiration = time() + $newRefreshTokenQuery->refresh_token_expires_in - 86400;
-                    $newAccessToken = $newRefreshTokenQuery->access_token;
                     $newAccessTokenExpiration = time() + $newRefreshTokenQuery->expires_in - 60;
-                    
-                    // Update the db with both new tokens.
-                    $this->mySql->update('tda_api', ['type' => 'refreshToken'], ['string' => $newRefreshToken, 'expiration' => $newRefreshTokenExpiration]);
-                    $this->mySql->update('tda_api', ['type' => 'accessToken'], ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration]);
-                    
+                    $this->mySql->update('tda_api', ['account_id' => $accountId], [
+                        'refreshToken' => $newRefreshTokenQuery->refresh_token,
+                        'refreshTokenExpiration' => $newRefreshTokenExpiration,
+                        'accessToken' => $newRefreshTokenQuery->access_token,
+                        'accessTokenExpiration' => $newAccessTokenExpiration
+                    ]);
                     $this->log->save('tokens', 'Updated Refresh and Access Tokens.');
                 }
-                
             } else {
-                // Update just the access token.
-                $newAccessTokenQuery = $this->tdaApi->accessToken($refreshToken, $consumerKey);
-                
+                // Only the access token is expired. Update just the Access token.
+                $newAccessTokenQuery = $this->tdaApi->accessToken($this->accountApiInfo->refreshToken, $this->accountApiInfo->consumerKey);
                 if (isset($newAccessTokenQuery->error)) {
-                    // Log failure.
-                    $logMessage = 'Error updating Access Token: ' . $newAccessTokenQuery->error;
-                    $this->log->save('tokens', $logMessage);
+                    $this->log->save('tokens', 'Error updating Access Token: ' . $newAccessTokenQuery->error);
                 } else {
-                    $newAccessToken = $newAccessTokenQuery->access_token;
                     $newAccessTokenExpiration = time() + $newAccessTokenQuery->expires_in - 60;
-                    
-                    // Update the db.
-                    $this->mySql->update('tda_api', ['type' => 'accessToken'], ['string' => $newAccessToken, 'expiration' => $newAccessTokenExpiration]);
-                    
+                    $this->mySql->update('tda_api', ['account_id' => $accountId], [
+                        'accessToken' => $newAccessTokenQuery->access_token,
+                        'accessTokenExpiration' => $newAccessTokenExpiration
+                    ]);
                     $this->log->save('tokens', 'Updated Access Token.');
                 }
             }
-        } else {
-                $this->log->save('tokens', 'Tokens are not expired.');
         }
     }
 
+    /** Download and save transactions for a specific date range. */
     private function updateTransactions(string $accountId, string $startDate = NULL, string $endDate = NULL)
     {
-        // If no date range is specified then default to today.
+        // Clear old pending transactions, and download transactions for the specified date range.
+        $this->mySql->truncate('transactions_pending');
         $today = date("Y-m-d");
         $startDate = $startDate ?? $today;
         $endDate = $endDate ?? $today;
-        
-        // Get the access token and account number from the db.
-        $accessTokenQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'accessToken']);
-        $accessToken = $accessTokenQuery[0]->string;
-        $accountNumberQuery = $this->mySql->read('tda_api', ['account_id' => $accountId, 'type' => 'accountNumber']);
-        $accountNumber = $accountNumberQuery[0]->string;
-        
-        // Clear the temporary table used for pending transactions.
-        $this->mySql->truncate('transactions_today');
-
-        // Retrieve transactions for the specified date range, and reverse the array so oldest transactions are entered first.
-        $transactions = $this->tdaApi->getTransactions($accessToken, $accountNumber, $startDate, $endDate);
+        $transactions = $this->tdaApi->getTransactions($this->accountApiInfo->accessToken, $this->accountApiInfo->accountNumber, $startDate, $endDate);
         $transactions = array_reverse($transactions);
-        // Iterate through the array, flatten each object, and store the data in the database.
+
+        // Flatten each transacation and store in the database. Record transaction type (duplicate, pending, completed), and transaction id/order id.
         $transactionsUpdated = [];
         $transactionsDuplicates = [];
         $transactionsPending = [];
         $transactionsErrors = [];
         foreach ($transactions as $transaction){
-            $insertArray = flatten($transaction);
-
-            // Add only completed transactions to the transaction history. Pending transactions go in the temporary table.
-            $pendingFlag = FALSE;
-            if (isset($transaction->transactionSubType)) {
-                $mySqlResponse = $this->mySql->create('transactions', $insertArray);
+            $transaction[] = ['account_id' => $accountId];
+            $processedTransaction = flatten($transaction);
+            $transactionTable = (isset($transaction->transactionSubType)) ? 'transactions' : 'transactions_pending' ;
+            $mySqlResponse = $this->mySql->create($transactionTable, $processedTransaction);
+            if (!is_numeric($mySqlResponse)) {
+                $transactionsErrors[] = $mySqlResponse;
             } else {
-                $mySqlResponse = $this->mySql->create('transactions_today', $insertArray);
-                $pendingFlag = TRUE;
-            }
-
-            // Record the number of transactions: new, duplicate, pending, and MySql errors.
-            if (is_numeric($mySqlResponse)) {
                 if ($mySqlResponse === 0) {
                     $transactionsDuplicates[] = $transaction->transactionId;
                 } else {
-                    if ($pendingFlag === FALSE) {
-                        $transactionsUpdated[] = $transaction->transactionId;
-                    } else {
+                    if ($transactionTable === 'transactions_pending') {
                         $transactionsPending[] = $transaction->orderId;
+                    } else {
+                        $transactionsUpdated[] = $transaction->transactionId;
                     }
                 }
-            } else {
-                $transactionsErrors[] = $mySqlResponse;
             }
         }
 
