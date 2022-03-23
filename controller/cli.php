@@ -8,19 +8,21 @@ class Cli {
     private array $arguments;
     private object $accountApiInfo;
 
-    public function __construct(MySql $mySql, Log $log, TdaApi $tdaApi)
+    public function __construct(MySql $mySql, Log $log, TdaApi $tdaApi, Request $request)
     {
         $this->mySql = $mySql;
         $this->log = $log;
         $this->tdaApi = $tdaApi;
-        // Save any arguments supplied.
-        $options = [
-            "updateTokens:",
-            "updateTransactions:"
-        ];
-        $this->arguments = getopt('', $options);
+        $this->arguments = array();
+        foreach ($request->server->argv as $argument) {
+            $argumentParsed = parse_ini_string($argument, false, INI_SCANNER_TYPED);
+            if (!empty($argumentParsed)) {
+                $this->arguments = array_merge($this->arguments, $argumentParsed);
+            }
+        }
     }
 
+    /** Parse command line arugments and execute the appropriate tasks. */
     public function exec()
     {
         if (count($this->arguments) > 0) {
@@ -28,18 +30,18 @@ class Cli {
             foreach ($accounts as $account) {
                 $this->accountApiInfo = $this->mySql->read('tda_api', ['account_id' => $account->account_id])[0];
 
-                // Update access and refresh tokens from the TDA API.
-                if (array_key_exists('updateTokens', $this->arguments)) {
+                $updateTokens = $this->arguments['updateTokens'] ?? FALSE;
+                if ($updateTokens === TRUE) {
                     $this->updateTdaTokens($account->account_id);
                 }
                 
-                // Download new transactions from the TDA API.
-                if (array_key_exists('updateTransactions', $this->arguments)) {
+                $updateTransactions = $this->arguments['updateTransactions'] ?? FALSE;
+                if ($updateTransactions === TRUE) {
                     $this->updateTransactions($account->accound_id, '2021-10-01', '2021-10-06');
                 }
 
-                // Download new orders from the TDA API.
-                if (array_key_exists('updateOrders', $this->arguments)) {
+                $updateOrders = $this->arguments['updateOrders'] ?? FALSE;
+                if ($updateOrders === TRUE) {
                     $this->updateOrders();
                 }
             }
