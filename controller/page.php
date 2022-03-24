@@ -8,16 +8,16 @@ class Page
     private Session $session;
     private Log $log;
     private Request $request;
-    private Cli $cli;
+    private TdaApi $tdaApi;
 
-    public function __construct(Config $config, MySql $mySql, Session $session, Log $log, Request $request, Cli $cli)
+    public function __construct(Config $config, MySql $mySql, Session $session, Log $log, Request $request, TdaApi $tdaApi)
     {
         $this->appSettings = $config->getSettings('application');
         $this->mySql = $mySql;
         $this->session = $session;
         $this->log = $log;
         $this->request = $request;
-        $this->cli = $cli;
+        $this->tdaApi = $tdaApi;
     }
 
     public function exec()
@@ -122,11 +122,9 @@ class Page
 
             case 'account':
 
-                // If a code has been submitted, enter it into the db.
+                // If a permission grant code has been submitted then generate new TDA tokens for the account.
                 if (isset($this->getRequest->code)) {
-                    $newPermissionCode = htmlspecialchars($this->getRequest->code, ENT_QUOTES);
-                    $this->mySql->update('tda_api', ['account_id' => $this->session->accountId], ['permissionCode' => $newPermissionCode]);
-                    $this->cli->createTdaTokens($this->session->accountId);
+                    $this->tdaApi->createTdaTokens($this->session->accountId, htmlspecialchars($this->getRequest->code, ENT_QUOTES));
                 }
 
                 // Get the refresh token status

@@ -1,19 +1,21 @@
-<?php 
+<?php
 
-/*
- * This class handles interactions with the TDA API.
- */
-class TdaApi
+/** Request information from the TD Ameritrade API */
+class TdaApiRequest
 {
+    public CurlJsonApi $curl;
 
-    private Curl $curl;
-
-    public function __construct(Curl $curl)
+    public function __construct(CurlJsonApi $curl)
     {
         $this->curl = $curl;
     }
 
-    // Create a brand new refresh token using a permission code. This only needs to be run on first setup or when the current refresh token expired.
+    /**
+     * Request new refresh and access tokens from the TDA API using a permission grant code.
+     * Should only be used when the current refresh token was not renewed in time and is now expired, as generating a permission code requires manual verification by the user.
+     *
+     * @return object Object containing token data.
+     */
     public function newTokens(string $permissionCode, string $consumerKey, string $redirectUri)
     {
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
@@ -23,7 +25,11 @@ class TdaApi
         return $apiResponse;
     }
     
-    // Request a new Refresh Token from the TDA API (which allows requesting of Access Tokens) and return it as a string. This should be run before the current refresh token expires, to avoid the manual step of creating a permission code for a grant.
+    /**
+     * Request new refresh and access tokens from the TDA API using a valid refresh token.
+     *
+     * @return object Object containing token data.
+     */
     public function refreshToken(string $refreshToken, string $consumerKey)
     {
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
@@ -33,8 +39,11 @@ class TdaApi
         return $apiResponse;
     }
     
-    // Request a new Access Token from the TDA API, and return it as a string.
-    // TDA Access Tokens expire after 30 minutes.
+    /**
+     * Request a new access token from the TDA API using a valid refresh token.
+     *
+     * @return object Object containing token data.
+     */
     public function accessToken(string $refreshToken, string $consumerKey)
     {
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
@@ -44,8 +53,12 @@ class TdaApi
         return $apiResponse;
     }
 
-    // Download Transaction History from the TDA API.
-    public function getTransactions(string $accessToken, string $accountNumber, string $startDate, string $endDate)
+    /**
+     * Request transaction history from the TDA API.
+     *
+     * @return array Array of objects containing transaction data.
+     */
+    public function transactions(string $accessToken, string $accountNumber, string $startDate, string $endDate)
     {
         //$url = 'https://api.tdameritrade.com/v1/accounts/' . $accountNumber . '/transactions?type=' . $type . '&startDate=' . $startDate . '&endDate=' . $endDate;
         $url = 'https://api.tdameritrade.com/v1/accounts/' . $accountNumber . '/transactions?startDate=' . $startDate . '&endDate=' . $endDate;
@@ -54,10 +67,13 @@ class TdaApi
         return $apiResponse;
     }
 
-    // Download Orders from the TDA API, and return the data as an array of objects.
-    // TDA Orders are realtime (updated as new orders are placed).
-    // Warning: This API is unreliable and frequently missing orders that are placed too rapidly. Need a way to validate data in realtime.
-    public function getOrders(string $status, string $startDate, string $endDate, string $accessToken)
+    /**
+     * Request orders data from the TDA API.
+     * Note: Data seems to be unreliable, and sometimes missings orders. Transaction API is more reliable.
+     * 
+     * @return array Array of objects containg order data.
+     */
+    public function orders(string $status, string $startDate, string $endDate, string $accessToken)
     {
         $url = 'https://api.tdameritrade.com/v1/orders?fromEnteredTime=' . $startDate . '&toEnteredTime=' . $endDate . '&status=' . $status;
         $header = array('Authorization: Bearer ' . $accessToken);
@@ -65,15 +81,18 @@ class TdaApi
         return $apiResponse;
     }
 
-    // Get Account balances, positions, and orders from the TDA API, and return the data as an array of objects.
-    public function getAccountInfo(string $accessToken, string $accountNumber)
+    /**
+     * Request account information from the TDA API.
+     *
+     * @param string $accessToken
+     * @param string $accountNumber
+     * @return array Array of objects containing balance, position, and order data.
+     */
+    public function accountInfo(string $accessToken, string $accountNumber)
     {
         $url = 'https://api.tdameritrade.com/v1/accounts/' . $accountNumber;
         $header = array('Authorization: Bearer ' . $accessToken);
         $apiResponse = $this->curl->get($header, $url);
         return $apiResponse;
     }
-
 }
-
-?>
