@@ -19,13 +19,12 @@ class Log
      */
     public function save(string $logName, string $contents, string $mode = NULL) {
         if ($this->logSettings->enabled === TRUE && $this->logSettings->$logName === TRUE) {
-            $filePath = $this->logSettings->logpath . '/' . $logName;
+            $filePath = $this->logSettings->path . '/' . $logName;
+            $mode = $mode ?? 'a';
+            $file = fopen($filePath, $mode) or die("Unable to open file: $filePath");
             $output = date("Y/m/d H:i:s") . ' - ' . $contents . PHP_EOL;
-
-            $action = $action ?? 'a';
-            $openFile = fopen($filePath, $mode) or die("Unable to open file: $filePath");
-            fwrite($openFile, $contents);
-            fclose($openFile);
+            fwrite($file, $output);
+            fclose($file);
         }
     }
 }
