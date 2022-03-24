@@ -41,10 +41,10 @@ class TdaApi
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         $tokenRequest = $this->tdaApiRequest->newTokens($permissionCode, $accountInfo->consumerKey, $accountInfo->redirectUri);
         if (isset($tokenRequest->error)) {
-            $this->log->save('tokens', 'Error generating new tokens: ' . $tokenRequest->error);
+            $this->log->save('tokens', 'Error generating new tokens for account #' . $accountId . ': ' . $tokenRequest->error);
         } else {
             $this->saveTokens($accountId, $tokenRequest->access_token, $tokenRequest->expires_in, $tokenRequest->refresh_token, $tokenRequest->refresh_token_expires_in);
-            $this->log->save('tokens', 'Generated brand new tokens.');
+            $this->log->save('tokens', 'Generated brand new tokens for account #' . $accountId);
         }
     }
 
