@@ -5,7 +5,7 @@ class MySql
 
     private object $dbSettings;
     private Log $log;
-    private object $connection;
+    private mysqli $connection;
 
     public function __construct(Config $config, Log $log)
     {
