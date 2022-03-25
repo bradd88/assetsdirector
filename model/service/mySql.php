@@ -34,11 +34,14 @@ class MySql
     }
 
     // Run a supplied query and return the appropriate information from the results.
-    private function query($queryType, $queryString)
+    private function query(string $queryType, string $queryString)
     {
         // Perform the requested query and return the relevant information from the response.
-        $this->log->save('database_queries', 'Query: ' . $queryString);
+        $timerStart = microtime(TRUE);
         $queryResponse = $this->connection->query($queryString);
+        $timerStop = microtime(TRUE);
+        $executeTime = bcsub("$timerStop", "$timerStart", 5);
+        $this->log->save('database_queries', 'Query took ' . $executeTime . ' seconds: ' . $queryString);
         if ($queryResponse === FALSE) {
             return 'Query: ' . $queryString . '\nError: ' . $this->connection->error;
         } else {
@@ -52,22 +55,34 @@ class MySql
         }
     }
 
+    private function preparedStatement(string $queryString, array $bindParams)
+    {
+        $preparedStatement = $this->connection->prepare($queryString);
+        $preparedStatement->bind_param(...$bindParams);
+        $timerStart = microtime(TRUE);
+        $preparedStatement->execute();
+        $timerStop = microtime(TRUE);
+        $executeTime = bcsub("$timerStop", "$timerStart", 5);
+        $preparedStatement->store_result();
+        $this->log->save('database_queries', 'Query took ' . $executeTime . ' seconds: ' . $queryString);
+        return $preparedStatement;
+    }
+
     // Create a new user in the database using a prepared statement.
     public function createUser(string $username, string $password)
     {
         // Check if the username already exists.
-        $checkUsername = $this->connection->prepare('SELECT `account_id` FROM `accounts` WHERE `username` = ?');
-        $checkUsername->bind_param('s', $username);
-        $checkUsername->execute();
-        $checkUsername->store_result();
+        $queryString = 'SELECT `account_id` FROM `accounts` WHERE `username` = ?';
+        $bindParams = array('s', $username);
+        $checkUsername = $this->preparedStatement($queryString, $bindParams);
         
         // Create the new account if the username isn't taken.
         if ($checkUsername->num_rows === 0) {
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $created = time();
-            $createUser = $this->connection->prepare('INSERT INTO `accounts` (`username`, `hash`, `created`) VALUES (?, ?, ?)');
-            $createUser->bind_param('ssi', $username, $hash, $created);
-            $createUser->execute();
+            $queryString = 'INSERT INTO `accounts` (`username`, `hash`, `created`) VALUES (?, ?, ?)';
+            $bindParams = array('ssi', $username, $hash, $created);
+            $this->preparedStatement($queryString, $bindParams);
             return 'Account created.';
         } else {
             return 'Account already exists.';
@@ -78,10 +93,9 @@ class MySql
     public function verifyLogin(string $username, string $password)
     {
         // Retrieve the account information.
-        $verifyLogin = $this->connection->prepare('SELECT `account_id`, `hash` FROM `accounts` WHERE `username` = ?');
-        $verifyLogin->bind_param('s', $username);
-        $verifyLogin->execute();
-        $verifyLogin->store_result();
+        $queryString = 'SELECT `account_id`, `hash` FROM `accounts` WHERE `username` = ?';
+        $bindParams = array('s', $username);
+        $verifyLogin = $this->preparedStatement($queryString, $bindParams);
 
         // If an account matching the username exists, then store the account ID and password hash.
         if ($verifyLogin->num_rows === 1) {
@@ -89,17 +103,9 @@ class MySql
             $hash = '';
             $verifyLogin->bind_result($account_id, $hash);
             $verifyLogin->fetch();
-            
-            // Verify the supplied password matches the account password hash.
-            if (password_verify($password, $hash) === TRUE) {
-                // Correct password
-                return $account_id;
-            } else {
-                // Incorrect password.
-                return FALSE;
-            }
+            $verifyStatus = (password_verify($password, $hash) === TRUE) ? $account_id : FALSE;
+            return $verifyStatus;
         } else {
-            // Account doesn't exist.
             return FALSE;
         }
     }
@@ -107,14 +113,8 @@ class MySql
     // Convert an array into a Columns/Values string for use in the WHERE, WHERE/BETWEEN, SET, or INSERT INTO/VALUES portions of a query.
     private function arrayToQueryString(array $array, string $type)
     {
-        // Set the appropriate string to glue segments together.
-        if ($type == 'where') {
-            $concatenator = ' AND ';
-        } else {
-            $concatenator = ', ';
-        }
 
-        // Use the key/value pairs from the array to create the string.
+        $concatenator = ($type === 'where') ? ' AND ' : ', ';
         $string = '';
         foreach ($array as $key => $value) {
             if ($type == 'where') {
