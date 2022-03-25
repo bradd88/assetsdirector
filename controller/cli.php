@@ -28,12 +28,12 @@ class Cli {
 
                 $updateTokens = $this->arguments['updateTokens'] ?? FALSE;
                 if ($updateTokens === TRUE) {
-                    $this->tdaApi->updateTdaTokens($account->account_id);
+                    $this->tdaApi->updateTokens($account->account_id);
                 }
                 
                 $updateTransactions = $this->arguments['updateTransactions'] ?? FALSE;
                 if ($updateTransactions === TRUE) {
-                    $this->tdaApi->updateTransactions($account->accound_id, '2021-10-01', '2021-10-06');
+                    $this->tdaApi->updateTransactions($account->accound_id, $start, $end);
                 }
 
                 $updateOrders = $this->arguments['updateOrders'] ?? FALSE;

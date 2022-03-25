@@ -36,7 +36,7 @@ class TdaApi
     }
 
     /** Create and save brand new Refresh and Access tokens using a Permission Code. */
-    public function createTdaTokens(string $accountId, string $permissionCode)
+    public function createTokens(string $accountId, string $permissionCode)
     {
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         $tokenRequest = $this->tdaApiRequest->newTokens($permissionCode, $accountInfo->consumerKey, $accountInfo->redirectUri);
@@ -49,7 +49,7 @@ class TdaApi
     }
 
     /** Update and save expired tokens. */
-    public function updateTdaTokens(string $accountId)
+    public function updateTokens(string $accountId)
     {
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         if (time() < $accountInfo->accessTokenExpiration) {

@@ -124,7 +124,7 @@ class Page
 
                 // If a permission grant code has been submitted then generate new TDA tokens for the account.
                 if (isset($this->request->get->code)) {
-                    $this->tdaApi->createTdaTokens($this->session->accountId, htmlspecialchars($this->request->get->code, ENT_QUOTES));
+                    $this->tdaApi->createTokens($this->session->accountId, htmlspecialchars($this->request->get->code, ENT_QUOTES));
                 }
 
                 // Get the refresh token status
