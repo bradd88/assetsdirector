@@ -41,10 +41,10 @@ class TdaApi
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         $tokenRequest = $this->tdaApiRequest->newTokens($permissionCode, $accountInfo->consumerKey, $accountInfo->redirectUri);
         if (isset($tokenRequest->error)) {
-            $this->log->save('tokens', 'Error generating new tokens for account #' . $accountId . ': ' . $tokenRequest->error);
+            $this->log->save('tokens', 'Account#: ' . $accountId . ' - Error creating new tokens: ' . $tokenRequest->error);
         } else {
             $this->saveTokens($accountId, $tokenRequest->access_token, $tokenRequest->expires_in, $tokenRequest->refresh_token, $tokenRequest->refresh_token_expires_in);
-            $this->log->save('tokens', 'Generated brand new tokens for account #' . $accountId);
+            $this->log->save('tokens', 'Account#: ' . $accountId . ' - Successfully created new tokens.');
         }
     }
 
@@ -53,25 +53,25 @@ class TdaApi
     {
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         if (time() < $accountInfo->accessTokenExpiration) {
-            $this->log->save('tokens', 'Tokens are not expired.');
+            $this->log->save('tokens', 'Account#: ' . $accountId . ' - Tokens are not expired.');
         } else {
             if (time() >= $accountInfo->refreshTokenExpiration) {
                 // Refresh token is expired. Update both Refresh and Access tokens.
                 $tokenRequest = $this->tdaApiRequest->refreshToken($accountInfo->refreshToken, $accountInfo->consumerKey);
                 if (isset($tokenRequest->error)) {
-                    $this->log->save('tokens', 'Error updating Refresh Token: ' . $tokenRequest->error);
+                    $this->log->save('tokens', 'Account#: ' . $accountId . ' - Error updating refresh token: ' . $tokenRequest->error);
                 } else {
                     $this->saveTokens($accountId, $tokenRequest->access_token, $tokenRequest->expires_in, $tokenRequest->refresh_token, $tokenRequest->refresh_token_expires_in);
-                    $this->log->save('tokens', 'Updated Refresh and Access Tokens.');
+                    $this->log->save('tokens', 'Account#: ' . $accountId . ' - Successfully updated refresh and access tokens.');
                 }
             } else {
                 // Only the access token is expired. Update just the Access token.
                 $tokenRequest = $this->tdaApiRequest->accessToken($accountInfo->refreshToken, $accountInfo->consumerKey);
                 if (isset($tokenRequest->error)) {
-                    $this->log->save('tokens', 'Error updating Access Token: ' . $tokenRequest->error);
+                    $this->log->save('tokens', 'Account#: ' . $accountId . ' - Error updating access token: ' . $tokenRequest->error);
                 } else {
                     $this->saveTokens($accountId, $tokenRequest->access_token, $tokenRequest->expires_in);
-                    $this->log->save('tokens', 'Updated Access Token.');
+                    $this->log->save('tokens', 'Account#: ' . $accountId . ' - Successfully updated access token.');
                 }
             }
         }
@@ -116,10 +116,10 @@ class TdaApi
         }
 
         // Save update information to the log.
-        $logMessage = 'Transactions Downloaded - New: ' . count($transactionsUpdated) . ' Duplicates: ' . count($transactionsDuplicates) . ' Pending: ' . count($transactionsPending) . ' Errors: ' . count($transactionsErrors);
+        $logMessage = 'Account#: ' . $accountId . ' - Transactions Downloaded - New: ' . count($transactionsUpdated) . ' Duplicates: ' . count($transactionsDuplicates) . ' Pending: ' . count($transactionsPending) . ' Errors: ' . count($transactionsErrors);
         $this->log->save('transactions', $logMessage);
         if (count($transactionsErrors) > 0) {
-            $this->log->save('transactions', 'Failed to add transactions: ' . json_encode($transactionsErrors));
+            $this->log->save('transactions', 'Account#: ' . $accountId . ' - Failed to add transactions: ' . json_encode($transactionsErrors));
         }
     }
 

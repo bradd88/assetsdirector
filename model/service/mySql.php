@@ -4,13 +4,13 @@ class MySql
 {
 
     private object $dbSettings;
-    private Log $logs;
+    private Log $log;
     private object $connection;
 
-    public function __construct(Config $config, Log $logs)
+    public function __construct(Config $config, Log $log)
     {
         $this->dbSettings = $config->getSettings('mySql');
-        $this->logs = $logs;
+        $this->log = $log;
         $this->connect();
     }
 
@@ -37,6 +37,7 @@ class MySql
     private function query($queryType, $queryString)
     {
         // Perform the requested query and return the relevant information from the response.
+        $this->log->save('database_queries', 'Query: ' . $queryString);
         $queryResponse = $this->connection->query($queryString);
         if ($queryResponse === FALSE) {
             return 'Query: ' . $queryString . '\nError: ' . $this->connection->error;
