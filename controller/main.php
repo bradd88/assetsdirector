@@ -30,8 +30,8 @@ class Main
     private function exec(): void
     {
         $instanceType = (php_sapi_name() === 'cli') ? 'Cli' : 'Page';
-        $diContainer = new DIContainer();
-        $instance = $diContainer->create($instanceType);
+        $serviceContainer = new ServiceContainer();
+        $instance = $serviceContainer->create($instanceType);
         echo $instance->exec();
     }
 }
