@@ -1,17 +1,19 @@
 <?php
 
+/** This class parses an INI file and stores the data as object properties.  */
 class Config
 {
     private array $config;
 
-    public function __construct(string $rootDirectory = NULL, string $fileName = NULL)
+    public function __construct(?string $rootDirectory = NULL, ?string $fileName = NULL)
     {
         $rootDirectory = $rootDirectory ?? dirname(__DIR__, 2);
         $fileName = $fileName ?? 'config.ini';
         $this->load($rootDirectory, $fileName);
     }
 
-    private function load(string $rootDirectory, string $fileName)
+    /** Load and parse a specified file, and store the data. */
+    private function load(string $rootDirectory, string $fileName): void
     {
         $filePath = $rootDirectory . '/' . $fileName;
         $configuration = parse_ini_file($filePath, TRUE, INI_SCANNER_TYPED);
@@ -20,7 +22,8 @@ class Config
         $this->config = $configuration;
     }
 
-    public function getSettings(string $section)
+    /** return a section of the parsed INI file as object properties. */
+    public function getSettings(string $section): object
     {
         return (object) $this->config[$section];
     }

@@ -1,5 +1,6 @@
 <?php 
 
+/** This class performs queries the MySQL database. Supports CRUD operations as well as prepared statements. */
 class MySql
 {
 
@@ -19,8 +20,8 @@ class MySql
         $this->disconnect();
     }
 
-    // Create a new database connection using information from the config file.
-    private function connect()
+    /** Create a new database connection using information from the config file. */
+    private function connect(): void
     {
         $this->connection = new mysqli($this->dbSettings->host, $this->dbSettings->user, $this->dbSettings->password, $this->dbSettings->database);
         if ($this->connection->connect_error) {
@@ -28,13 +29,21 @@ class MySql
         }
     }
 
-    private function disconnect()
+    /** Explicitly close the existing database connection. */
+    private function disconnect(): void
     {
         $this->connection->close();
     }
 
-    // Run a supplied query and return the appropriate information from the results.
-    private function query(string $queryType, string $queryString)
+    /** Run a supplied query and return the appropriate information from the results.
+     * 
+     * @return mixed
+     * INSERT returns the ID of the inserted row.
+     * SELECT returns an array of objects representing table rows.
+     * UPDATE/DELTE/TRUNCATE returns the number of affected rows.
+     * If there is an errror with the query, a string containing error data is returned instead.
+     */
+    private function query(string $queryType, string $queryString): mixed
     {
         // Perform the requested query and return the relevant information from the response.
         $timerStart = microtime(TRUE);
@@ -55,7 +64,11 @@ class MySql
         }
     }
 
-    private function preparedStatement(string $queryString, array $bindParams)
+    /** Execute a prepared statement string, and record execution times in the logs.
+     * 
+     * @return mysqli_stmt|false Returns the statement object, or bool FALSE if there is an error.
+     */
+    private function preparedStatement(string $queryString, array $bindParams): mixed
     {
         $preparedStatement = $this->connection->prepare($queryString);
         $preparedStatement->bind_param(...$bindParams);
@@ -68,8 +81,8 @@ class MySql
         return $preparedStatement;
     }
 
-    // Create a new user in the database using a prepared statement.
-    public function createUser(string $username, string $password)
+    /** Create a new user in the database using a prepared statement. */
+    public function createUser(string $username, string $password): string
     {
         // Check if the username already exists.
         $queryString = 'SELECT `account_id` FROM `accounts` WHERE `username` = ?';
@@ -89,8 +102,11 @@ class MySql
         }
     }
 
-    // Verify user credentials using a prepared statement.
-    public function verifyLogin(string $username, string $password)
+    /** Verify that provided user credentials are good.
+     * 
+     * @return int|false Returns the verified account ID if username/password are good. Returns FALSE if the username/password are bad.
+    */
+    public function verifyLogin(string $username, string $password): mixed
     {
         // Retrieve the account information.
         $queryString = 'SELECT `account_id`, `hash` FROM `accounts` WHERE `username` = ?';
@@ -110,8 +126,8 @@ class MySql
         }
     }
 
-    // Convert an array into a Columns/Values string for use in the WHERE, WHERE/BETWEEN, SET, or INSERT INTO/VALUES portions of a query.
-    private function arrayToQueryString(array $array, string $type)
+    /** Convert an array into a Columns/Values string for use in the WHERE, WHERE/BETWEEN, SET, or INSERT INTO/VALUES portions of a query. */
+    private function arrayToQueryString(array $array, string $type): string
     {
 
         $concatenator = ($type === 'where') ? ' AND ' : ', ';
@@ -138,8 +154,8 @@ class MySql
         return $string;
     }
 
-    // Create rows in the database from an array of columns and values.
-    public function create(string $tableName, array $insertArray)
+    /** Create rows in the database using Key/Value pairs from $insertArray. */
+    public function create(string $tableName, array $insertArray): mixed
     {
         $columnString = $this->arrayToQueryString($insertArray, 'insertColumn');
         $valueString = $this->arrayToQueryString($insertArray, 'insertValue');
@@ -147,21 +163,8 @@ class MySql
         return $this->query('INSERT', $queryString);
     }
 
-    /**
-     * MySQL Read
-     * Read rows from the database using selected column values.
-     * 
-     * E.G. The following code:
-     *     read('accounts', ['test' => [89675, 456787], 'herp' => 'lerp'], 'Price DESC')
-     * Will run the following query:
-     *     SELECT * FROM accounts WHERE test BETWEEN 89675 AND 456787 AND herp = lerp ORDER BY Price DESC
-     * 
-     * @param string $tableName
-     * @param array $whereArray The Key/Value pairs of the $whereArray are mapped to database Column/Value pairs. If a Value is input as an array then a BETWEEN search will be used.
-     * @param string $orderBy
-     * @return array Returns an array(table) of objects(rows).
-     */
-    public function read(string $tableName, array $whereArray = NULL, string $orderBy = NULL)
+    /** Read rows from the database using Key/Value pairs from $whereArray. */
+    public function read(string $tableName, array $whereArray = NULL, string $orderBy = NULL): mixed
     {
         $queryString = 'SELECT * FROM `' . $tableName . '`';
         if ($whereArray !== NULL) {
@@ -174,8 +177,8 @@ class MySql
         return $this->query('SELECT', $queryString);
     }
 
-    // Update rows with new values using selected column values.
-    public function update(string $tableName, array $whereArray, array $setArray)
+    /** Update rows in the database using Key/Value pairs from $whereArray and $setArray. */
+    public function update(string $tableName, array $whereArray, array $setArray): mixed
     {
         $whereString = $this->arrayToQueryString($whereArray, 'where');
         $setString = $this->arrayToQueryString($setArray, 'set');
@@ -183,16 +186,16 @@ class MySql
         return $this->query('UPDATE', $queryString);
     }
 
-    // Delete selected rows from the database using selected column values.
-    public function delete(string $tableName, array $whereArray)
+    /** Delete selected rows from the database using Key/Value pairs from $whereArray. */
+    public function delete(string $tableName, array $whereArray): mixed
     {
         $whereString = $this->arrayToQueryString($whereArray, ' AND ');
         $queryString = 'DELETE FROM `' . $tableName . '` WHERE ' . $whereString;
         return $this->query('DELETE', $queryString);
     }
 
-    // Delete an entire selected table from the database.
-    public function truncate(string $tableName)
+    /** Delete an entire selected table from the database. */
+    public function truncate(string $tableName): mixed
     {
         $queryString = 'TRUNCATE `' . $this->dbSettings->database . '`.`' . $tableName . '`';
         return $this->query('TRUNCATE', $queryString);

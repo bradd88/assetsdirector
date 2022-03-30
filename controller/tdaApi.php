@@ -1,6 +1,6 @@
 <?php
 
-/** Downloads and stores information from the TDA API to the Database. */
+/** TDA API controller that handles downloading data and saving it to the database. */
 class TdaApi
 {
     private TdaApiRequest $tdaApiRequest;
@@ -14,12 +14,8 @@ class TdaApi
         $this->log = $log;
     }
 
-    /**
-     * Store tokens in the database after modifying expiration times for a buffer.
-     *
-     * @return void
-     */
-    private function saveTokens(string $accountId, string $accessToken, string $accessTokenExpiration, string $refreshToken = NULL, string $refreshTokenExpiration = NULL)
+    /** Store tokens in the database after modifying expiration times for a buffer. */
+    private function saveTokens(string $accountId, string $accessToken, string $accessTokenExpiration, ?string $refreshToken = NULL, ?string $refreshTokenExpiration = NULL): void
     {
         $accessTokenExpirationModified = $accessTokenExpiration + time() - 60;
         $this->mySql->update('tda_api', ['account_id' => $accountId], [
@@ -36,7 +32,7 @@ class TdaApi
     }
 
     /** Create and save brand new Refresh and Access tokens using a Permission Code. */
-    public function createTokens(string $accountId, string $permissionCode)
+    public function createTokens(string $accountId, string $permissionCode): void
     {
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         $tokenRequest = $this->tdaApiRequest->newTokens($permissionCode, $accountInfo->consumerKey, $accountInfo->redirectUri);
@@ -49,7 +45,7 @@ class TdaApi
     }
 
     /** Update and save expired tokens. */
-    public function updateTokens(string $accountId)
+    public function updateTokens(string $accountId): void
     {
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         if (time() < $accountInfo->accessTokenExpiration) {
@@ -78,7 +74,7 @@ class TdaApi
     }
 
     /** Download and save transactions for a specific date range. */
-    public function updateTransactions(string $accountId, string $startDate = NULL, string $endDate = NULL)
+    public function updateTransactions(string $accountId, ?string $startDate = NULL, ?string $endDate = NULL): void
     {
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
 
@@ -123,7 +119,8 @@ class TdaApi
         }
     }
 
-    public function updateOrders()
+    /** Download and save orders for a specified date range. */
+    public function updateOrders(): void
     {
         
     }

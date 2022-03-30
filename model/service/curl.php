@@ -1,14 +1,14 @@
 <?php
 
-/** Use curl to GET or POST to an API that returns JSON encoded data. Data is decoded into array/objects */
+/** This class uses curl to GET or POST to an API that returns JSON encoded data. Data is decoded into array of objects */
 class CurlJsonApi
 {
+
     /**
-     * Use curl to query a URL using POST.
-     *
-     * @return array|object Response is JSON decoded into an array and/or objects.
+     * Query a url using http post. Data is returned as an object or array of objects.
+     * @return array|object
      */
-    public function post($header, $url, $vars)
+    public function post($header, $url, $vars): mixed
     {
         $request = curl_init();
         curl_setopt($request, CURLOPT_URL, $url);
@@ -22,11 +22,10 @@ class CurlJsonApi
     }
 
     /**
-     * Use curl to query a URL using GET.
-     *
-     * @return array|object Response is JSON decoded into an array and/or objects.
+     * Query a url using http post. Data is returned as an object or array of objects.
+     * @return array|object
      */
-    public function get($header, $url)
+    public function get($header, $url): string
     {
         $request = curl_init();
         curl_setopt($request, CURLOPT_URL, $url);

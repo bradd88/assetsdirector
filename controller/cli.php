@@ -1,6 +1,6 @@
 <?php 
 
-/** Takes command line arguments and executes the appropriate methods. */
+/** Command line controller that accepts commands and executes them as necessary. */
 class Cli {
     private MySql $mySql;
     private TdaApi $tdaApi;
@@ -22,7 +22,7 @@ class Cli {
     }
 
     /** Read command line flags and run appropriate methods on all accounts. */
-    public function exec()
+    public function exec(): void
     {
         if (count($this->arguments) > 0) {
             $accounts = $this->mySql->read('accounts');

@@ -1,5 +1,6 @@
 <?php 
 
+/** Page navigation controller that handles data between the models and views. Returns a string containing html that can be displayed to the end user. */
 class Page
 {
 
@@ -20,7 +21,8 @@ class Page
         $this->tdaApi = $tdaApi;
     }
 
-    public function exec()
+    /** Take the page request and determine if the user needs to be redirected to the login page before generating the requested page. */
+    public function exec(): string
     {
         if (!isset($this->request->get->page) || $this->request->get->page === 'login') {
             $this->request->get->page = 'home';
@@ -32,7 +34,8 @@ class Page
         }
     }
 
-    private function requireLogin()
+    /** Attempt to login the user. */
+    private function requireLogin(): string
     {
         // User attempting to access a page when not logged in.
         if (!isset($this->request->post->username) && !isset($this->request->post->password)) {
@@ -59,7 +62,8 @@ class Page
         }
     }
 
-    private function generate($page, $message = NULL)
+    /** Retrieve data for a requested page. */
+    private function generate(string $page, ?string $message = NULL): string
     {
         switch ($page) {
             case 'login':
@@ -148,7 +152,8 @@ class Page
             return $output;
     }
 
-    private function getView($name, $parameters = NULL)
+    /** Generate presentation object code for the specefied view. */
+    private function getView(string $name, ?array $parameters = NULL): string
     {
         // Move variables out of the optional parameters array for easier use.
         if (isset($parameters)) {

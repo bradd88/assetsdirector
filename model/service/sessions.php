@@ -1,5 +1,6 @@
 <?php 
 
+/** This class handles retrieving and setting client session data. */
 class Session
 {
     
@@ -15,7 +16,8 @@ class Session
         $this->start();
     }
 
-    private function start()
+    /** Create session and store session data in a cookie. */
+    private function start(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
             $cookieParams = session_get_cookie_params();
@@ -27,7 +29,15 @@ class Session
         }
     }
 
-    public function login($id)
+    /** Cleanup an existing session */
+    public function stop(): void
+    {
+        session_unset();
+        session_destroy();
+    }
+
+    /** Save login data to the session. */
+    public function login(string $id): void
     {
         $this->accountId = $id;
         $_SESSION['accountId'] = $this->accountId;
@@ -36,7 +46,8 @@ class Session
         session_regenerate_id();
     }
 
-    public function check()
+    /** Verify the session is valid and has not expired. If the session is good renew it, if not cleanup the session data. */
+    public function check(): bool
     {
         if (isset($_SESSION['accountId'])) {
             if (time() < $_SESSION['expire']) {
@@ -52,12 +63,6 @@ class Session
             // No account logged in.
             return FALSE;
         }
-    }
-
-    public function stop()
-    {
-        session_unset();
-        session_destroy();
     }
 
 }
