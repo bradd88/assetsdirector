@@ -16,8 +16,7 @@ class TdaApiRequest
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
         $vars = 'grant_type=authorization_code&refresh_token=&access_type=offline&code=' . urlencode($permissionCode) . '&client_id=' . urlencode($consumerKey) . '&redirect_uri=' . urlEncode($redirectUri);
         $header = array('Content-Type: application/x-www-form-urlencoded');
-        $apiResponse = $this->curl->post($header, $url, $vars);
-        return $apiResponse;
+        return $this->curl->exec('post', $header, $url, $vars);
     }
     
     /** Request new refresh and access tokens from the TDA API using an unexpired refresh token. */
@@ -26,8 +25,7 @@ class TdaApiRequest
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
         $vars = 'grant_type=refresh_token&refresh_token=' . urlencode($refreshToken) . '&access_type=offline&code=&client_id=' . urlencode($consumerKey) . '&redirect_uri=';
         $header = array('Content-Type: application/x-www-form-urlencoded');
-        $apiResponse = $this->curl->post($header, $url, $vars);
-        return $apiResponse;
+        return $this->curl->exec('post', $header, $url, $vars);
     }
     
     /** Request a new access token from the TDA API using an unexpired refresh token. */
@@ -36,8 +34,7 @@ class TdaApiRequest
         $url = "https://api.tdameritrade.com/v1/oauth2/token";
         $vars = 'grant_type=refresh_token&refresh_token=' . urlencode($refreshToken) . '&access_type=&code=&client_id=' . urlencode($consumerKey) . '&redirect_uri=';
         $header = array('Content-Type: application/x-www-form-urlencoded');
-        $apiResponse = $this->curl->post($header, $url, $vars);
-        return $apiResponse;
+        return $this->curl->exec('post', $header, $url, $vars);
     }
 
     /** Request transaction history from the TDA API. Returns an array of objects. */
@@ -46,8 +43,7 @@ class TdaApiRequest
         //$url = 'https://api.tdameritrade.com/v1/accounts/' . $accountNumber . '/transactions?type=' . $type . '&startDate=' . $startDate . '&endDate=' . $endDate;
         $url = 'https://api.tdameritrade.com/v1/accounts/' . $accountNumber . '/transactions?startDate=' . $startDate . '&endDate=' . $endDate;
         $header = array('Authorization: Bearer ' . $accessToken);
-        $apiResponse = $this->curl->get($header, $url);
-        return $apiResponse;
+        return $this->curl->exec('get', $header, $url);
     }
 
     /** Request orders data from the TDA API. Data is unreliable from this API, so it's prefferable to use the transactions API. Returns an array of objects. */
@@ -55,8 +51,7 @@ class TdaApiRequest
     {
         $url = 'https://api.tdameritrade.com/v1/orders?fromEnteredTime=' . $startDate . '&toEnteredTime=' . $endDate . '&status=' . $status;
         $header = array('Authorization: Bearer ' . $accessToken);
-        $apiResponse = $this->curl->get($header, $url);
-        return $apiResponse;
+        return $this->curl->exec('get', $header, $url);
     }
 
     /** Request account information from the TDA API. */
@@ -64,8 +59,7 @@ class TdaApiRequest
     {
         $url = 'https://api.tdameritrade.com/v1/accounts/' . $accountNumber;
         $header = array('Authorization: Bearer ' . $accessToken);
-        $apiResponse = $this->curl->get($header, $url);
         // FIX: verify the TDA API always returns the same data type: Array of objects or just a single object.
-        return $apiResponse;
+        return $this->curl->exec('get', $header, $url);
     }
 }
