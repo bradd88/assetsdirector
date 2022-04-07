@@ -82,7 +82,6 @@ class Page
                 
             case 'transactions':
                 // Retrieve transaction data and mark potential errors by looking for impossible transactions.
-                require_once $this->appSettings->rootDir . '/model/logic/transactions.php';
                 $transactionsData = $this->mySql->read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
                 if (count($transactionsData) > 0) {
                     $transactionDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
@@ -95,8 +94,6 @@ class Page
                 
             case 'trades':
                 // Calculate trades using transaction data.
-                require_once $this->appSettings->rootDir . '/model/logic/transactions.php';
-                require_once $this->appSettings->rootDir . '/model/logic/trades.php';
                 $transactionsData = $this->mySql->read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
                 if (count($transactionsData) > 0) {
                     $transactionsDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
@@ -105,7 +102,6 @@ class Page
                         $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
 
                         // Calculate parameters from trade data and draw a graph using javascript.
-                        require_once $this->appSettings->rootDir . '/model/logic/graph.php';
                         $graphSettings = configureGraph($tradeList->graphCoordinates, 1600, 800);
                         $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
 
@@ -120,7 +116,6 @@ class Page
                 break;
                 
             case 'summary':
-                //require_once $this->appSettings->rootDir . '/view/page/summary.php';
                 $content = $this->getView('page/summary.phtml');
                 break;
 
