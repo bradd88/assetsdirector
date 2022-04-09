@@ -10,8 +10,9 @@ class Page
     private Log $log;
     private Request $request;
     private TdaApi $tdaApi;
+    private GraphFactory $graphFactory;
 
-    public function __construct(Config $config, MySql $mySql, Session $session, Log $log, Request $request, TdaApi $tdaApi)
+    public function __construct(Config $config, MySql $mySql, Session $session, Log $log, Request $request, TdaApi $tdaApi, GraphFactory $graphFactory)
     {
         $this->appSettings = $config->getSettings('application');
         $this->mySql = $mySql;
@@ -19,6 +20,7 @@ class Page
         $this->log = $log;
         $this->request = $request;
         $this->tdaApi = $tdaApi;
+        $this->graphFactory = $graphFactory;
     }
 
     /** Take the page request and determine if the user needs to be redirected to the login page before generating the requested page. */
@@ -102,10 +104,14 @@ class Page
                         $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
 
                         // Calculate parameters from trade data and draw a graph using javascript.
-                        $graphSettings = configureGraph($tradeList->graphCoordinates, 1600, 800);
-                        $graph = $this->getView('presentation/graph.phtml', ['graph' => $graphSettings]);
+                        $graph = $this->graphFactory->create();
+                        $graph->addLine('Profit and Loss', 'green', $tradeList->graphCoordinates);
+                        $graph->addLabel('x', 'suffix', ' trades');
+                        $graph->addLabel('y', 'prefix', '$');
+                        $graph->generate(1600, 800, 25, [10, 10, 100, 100], TRUE);
 
-                        $content = $graph . $table;
+                        $graphPresentation = $this->getView('presentation/graph.phtml', ['graph' => $graph]);
+                        $content = $graphPresentation . $table;
                     } else {
                         $content = $this->getView('page/trades.phtml', ['trades' => []]);
                     }

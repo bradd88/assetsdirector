@@ -1,113 +1,211 @@
 <?php 
 
-/**
- * Find the best common interval for a given value.
- * For positive values: The best common interval is defined as the smallest integer (equal to 1\*10^n or 2\*10^n or 5\*10^n, where n > 0) that is larger than the given value.
- * For negative values: The best common interval is defined as the largest integer (equal to -1\*10^n or -2\*10^n or or -5\*10^n, where n > 0.) that is smaller than the given value.
- *
- * @param int $value
- * @return int
- */
-function findCommonInterval($value) {
-    $multipliers = [1, 2, 5];
-    $n = 1;
-    while (TRUE) {
-        if ($value == 0) {
-            return 0;
-        }
-        foreach ($multipliers as $multiplier) {
-            $power = bcpow("10", "$n", 10);
-            $interval = bcmul("$multiplier", "$power", 10);
-            if ($value < 0) {
-                $interval = bcmul("$interval", "-1", 10);
-                if ($value > $interval) {
-                    return $interval;
+class Graph
+{
+    private array $unplottedLines;
+    private array $labels;
+
+    public int $width;
+    public int $height;
+    public bool $invertedYAxis;
+    public object $xAxis;
+    public object $yAxis;
+    public object $origin;
+    public array $lines;
+
+    public function __construct()
+    {
+        
+    }
+
+    /** Add a line to the graph. */
+    public function addLine(string $label, string $color, array $coordinates): void
+    {
+        $this->unplottedLines[] = (object) array('label' => $label, 'color' => $color, 'coordinates' => $coordinates);
+    }
+
+    public function addLabel(string $axisName, string $affixType, string $affixString): void
+    {
+        $this->labels[] = (object) ['axis' => $axisName, 'type' => $affixType, 'string' => $affixString];
+    }
+
+    /** Generate the graph with the specified settings. */
+    public function generate(int $canvasWidth, int $canvasHeight, int $maxGridCount, array $margins, bool $invertYAxis): void
+    {
+        $this->width = $canvasWidth;
+        $this->height = $canvasHeight;
+        $this->invertedYAxis = $invertYAxis;
+        $values = $this->findMinMaxValues($this->unplottedLines);
+        $this->xAxis = $this->createAxis($values['xAxisMin'], $values['xAxisMax'], $canvasWidth, $maxGridCount, [$margins[3], $margins[1]], FALSE);
+        $this->yAxis = $this->createAxis($values['yAxisMin'], $values['yAxisMax'], $canvasHeight, $maxGridCount, [$margins[2], $margins[0]], $this->invertedYAxis);
+        $this->origin = $this->findOriginPosition();
+        $this->applyLabelAffixes();
+        $this->plotLines();
+    }
+
+    /** Find the minimum and maximum x and y values for an array of coordinates. */
+    private function findMinMaxValues(array $lines): array
+    {
+        $minValueX = $lines[0]->coordinates[0][0];
+        $maxValueX = $lines[0]->coordinates[0][0];
+        $minValueY = $lines[0]->coordinates[0][1];
+        $maxValueY = $lines[0]->coordinates[0][1];
+        foreach ($lines as $line) {
+            foreach ($line->coordinates as $coordinate) {
+                if ($coordinate[0] > $maxValueX) {
+                    $maxValueX = $coordinate[0];
+                } elseif ($coordinate[0] < $minValueX) {
+                    $minValueX = $coordinate[0];
                 }
-            } elseif ($value < $interval) {
-                return $interval;
+                if ($coordinate[1] > $maxValueY) {
+                    $maxValueY = $coordinate[1];
+                } elseif ($coordinate[1] < $minValueY) {
+                    $minValueY = $coordinate[1];
+                }
             }
         }
-        $n++;
-    }
-}
-
-function configureGraph($coordinates, $canvasWidth, $canvasHeight, $xOffset = NULL, $yOffset = NULL) {
-
-    // Create the graph settings object and set the dimensions.
-    $graph = new stdClass;
-    $graph->width = $canvasWidth;
-    $graph->height = $canvasHeight;
-    $graph->xOffset = $xOffset ?? 50;
-    $graph->yOffset = $yOffset ?? 50;
-    $graph->xOrigin = $graph->xOffset;
-    $graph->yOrigin = $graph->height - $graph->yOffset;
-
-    // Find the min and max values for x/y coordinates.
-    $maxXValue = 0;
-    $maxYValue = 0;
-    $minYValue = 0;
-    foreach ($coordinates as $coordinate) {
-        $maxXValue = ($coordinate[0] > $maxXValue) ? $coordinate[0] : $maxXValue;
-        $maxYValue = ($coordinate[1] > $maxYValue) ? $coordinate[1] : $maxYValue;
-        $minYValue = ($coordinate[1] < $minYValue) ? $coordinate[1] : $minYValue;
+        return array('xAxisMin' => $minValueX, 'xAxisMax' => $maxValueX, 'yAxisMin' => $minValueY, 'yAxisMax' => $maxValueY);
     }
 
-    // Find the best value to start the x and y axis labels.
-    $graph->yStart = findCommonInterval($minYValue);
-    $graph->xStart = 0;
-
-    // Find the pixel increment for gridlines, rounded up to the nearest common interval, that results in the number of grid lines being as close as possible to max.
-    $maxGridLines = 20;
-    $heightRange = bcsub("$maxYValue", "$graph->yStart", 10);
-    $widthRange = bcsub("$maxXValue", "$graph->xStart", 10);
-    $yGridExactIncrement = bcdiv("$heightRange", "$maxGridLines", 10);
-    $xGridExactIncrement = bcdiv("$widthRange", "$maxGridLines", 10);
-    $yGridInterval = findCommonInterval($yGridExactIncrement);
-    $xGridInterval = findCommonInterval($xGridExactIncrement);
-
-    // Calculate the graph height and width based on the number of grids needed to cover the viewable area.
-    $viewableHeight = bcmul("$heightRange", "1.1", 10);
-    $yGridsRequired = ceil(bcdiv("$viewableHeight", "$yGridInterval", 10));
-    $graphHeight = bcmul("$yGridsRequired", "$yGridInterval", 10);
-    $viewableWidth = bcmul("$widthRange", "1.1", 10);
-    $xGridsRequired = ceil(bcdiv("$viewableWidth", "$xGridInterval", 10));
-    $graphWidth = bcmul("$xGridsRequired", "$xGridInterval", 10);
-
-    // Calculate the pixel increment of gridlines when the graph is scaled up to the canvas size, and save the value each grid represents.
-    $yGridPercentIncrement = bcdiv("$yGridInterval", "$graphHeight", 10);
-    $graph->yGridPixelIncrement = bcmul("$yGridPercentIncrement", "$canvasHeight", 10);
-    $graph->yGridValueIncrement = $yGridInterval;
-    $xGridPercentIncrement = bcdiv("$xGridInterval", "$graphWidth", 10);
-    $graph->xGridPixelIncrement = bcmul("$xGridPercentIncrement", "$canvasWidth", 10);
-    $graph->xGridValueIncrement = $xGridInterval;
-
-    // Calculate point coordinates when the graph is scaled to the size of the canvas.
-    foreach ($coordinates as $coordinate) {
-        // Create a new point object, and save information.
-        $point = new stdClass;
-        $point->xValue = $coordinate[0];
-        $point->yValue = $coordinate[1];
-        $point->text = $coordinate[2];
-
-        // Adjust the coordinate y values for a non zero start.
-        $point->yValue = bcsub("$point->yValue", "$graph->yStart", 10);
-
-        // Calculate the point coordinates when the graph is scaled to the canvas size.
-        $xPercent = bcdiv("$point->xValue", "$graphWidth", 10);
-        $point->xPosition = bcmul("$xPercent", "$canvasWidth", 10);
-        $yPercent = bcdiv("$point->yValue", "$graphHeight", 10);
-        $point->yPosition = bcmul("$yPercent", "$canvasHeight", 10);
-
-        // Apply offsets, then invert Y so the origin is the bottom left.
-        $point->xPosition = bcadd("$point->xPosition", "$graph->xOffset", 10);
-        $point->yPosition = bcadd("$point->yPosition", "$graph->yOffset", 10);
-        $point->yPosition = bcsub("$graph->height", "$point->yPosition", 10);
-
-        // Add the new point to the graph coordinates array.
-        $graph->coordinates[] = $point;
+    /** Calculate pixel positions and values for an axis using canvas/margin pixel size: start, stop, and grid increments. */
+    private function createAxis(float $minimumValue, float $maximumValue, int $pixelSize, int $maxGridCount, array $margins, bool $inverted): object
+    {
+        $marginTotal = bcadd($margins[0], $margins[1], 0);
+        $startValue = $this->closestReadableNumber('lte', $minimumValue);
+        $valueRangeMinimum = bcsub("$maximumValue", "$startValue", 10);
+        $gridValueIncrementMinimum = bcdiv("$valueRangeMinimum", "$maxGridCount", 10);
+        $gridValueIncrement = $this->closestReadableNumber('gte', $gridValueIncrementMinimum);
+        $gridCount = ceil(bcdiv("$valueRangeMinimum", "$gridValueIncrement", 10));
+        $valueRange = bcmul("$gridCount", "$gridValueIncrement", 0);
+        $stopValue = bcadd("$startValue", "$valueRange", 0);
+        $pixelSizeWithMargin = bcsub("$pixelSize", "$marginTotal", 0);
+        $pixelToValueRatio = bcdiv("$pixelSizeWithMargin", $valueRange, 10);
+        $gridPixelIncrement = bcmul("$pixelToValueRatio", "$gridValueIncrement", 10);
+        $startPixel = $margins[0];
+        $stopPixel = bcsub("$pixelSize", $margins[1], 0);
+        if ($inverted === TRUE) {
+            $startPixel = bcsub($pixelSize, $startPixel, 0);
+            $stopPixel = bcsub($pixelSize, $stopPixel, 0);
+        }
+        return (object) array(
+            'gridValueIncrement' => (int) $gridValueIncrement,
+            'gridPixelIncrement' => (int) $gridPixelIncrement,
+            'pixelToValueRatio' => (float) $pixelToValueRatio,
+            'gridCount' => (int) $gridCount,
+            'startValue' => (int) $startValue,
+            'startPixel' => (int) $startPixel,
+            'stopValue' => (int) $stopValue,
+            'stopPixel' => (int) $stopPixel,
+            'pixelSize' => (int) $pixelSize,
+            'labelPrefix' => '',
+            'labelSuffix' => ''
+        );
     }
 
-    return $graph;
+    private function findOriginPosition(): object
+    {
+        $x = $this->calculateValuePosition($this->xAxis, 0, FALSE);
+        $y = $this->calculateValuePosition($this->yAxis, 0, $this->invertedYAxis);
+        return (object) array('xPixel' => $x, 'yPixel' => $y);
+    }
+
+
+    /** Calculate pixel positions for point coordinates in all lines, and save the plotted lines. */
+    private function plotLines(): void
+    {
+        foreach ($this->unplottedLines as $unplottedLine) {
+            $points = array();
+            foreach ($unplottedLine->coordinates as $coordinate) {
+                $points[] = (object) array(
+                    'xPos' => $this->calculateValuePosition($this->xAxis, $coordinate[0], FALSE),
+                    'xValue' => $coordinate[0],
+                    'yPos' => $this->calculateValuePosition($this->yAxis, $coordinate[1], $this->invertedYAxis),
+                    'yValue' => $coordinate[1]
+                );
+            }
+            $this->lines[] = (object) array('label' => $unplottedLine->label, 'color' => $unplottedLine->color, 'points' => $points);
+        }
+    }
+
+    /** Calculate the pixel position of a coordinate on an axis. */
+    private function calculateValuePosition(object $axis, float $value, bool $inverted): int
+    {
+        $valueDistanceFromStart = bcsub($value, $axis->startValue, 0);
+        $pixelDistanceFromStart = bcmul($valueDistanceFromStart, $axis->pixelToValueRatio, 0);
+        if ($inverted === FALSE) {
+            $output = bcadd($axis->startPixel, $pixelDistanceFromStart, 0);
+        } else {
+            $output = bcsub($axis->startPixel, $pixelDistanceFromStart, 0);
+        }
+        return (int) $output;
+    }
+
+    private function applyLabelAffixes(): void
+    {
+        foreach ($this->labels as $label) {
+            if ($label->axis === 'x') {
+                if ($label->type === 'prefix') {
+                    $this->xAxis->labelPrefix = $label->string;
+                }
+                if ($label->type === 'suffix') {
+                    $this->xAxis->labelSuffix = $label->string;
+                }
+            }
+        }
+        if ($label->axis === 'y') {
+            if ($label->type === 'prefix') {
+                $this->yAxis->labelPrefix = $label->string;
+            }
+            if ($label->type === 'suffix') {
+                $this->yAxis->labelSuffix = $label->string;
+            }
+        }
+    }
+
+    /**
+     * Find the closest 'human readable number' that is (depending on the mode) greater than, less than, or equal to the specified value.
+     * 'Human readable numbers' are defined by the equation: x = m*10^n, where n>=0 and m=[1,2,2.5,5].
+     *
+     * @param string $mode Valid modes are: gte, gt, lte, and lt.
+     */
+    function closestReadableNumber(string $mode, float $value): int
+    {
+        if ($value === 0.0) {
+            return 0;
+        }
+        if ($value < 0) {
+            $value = abs($value);
+            $negative = TRUE;
+        }
+        $m = [1, 2, 2.5, 5];
+        $n = 1;
+        $lastX = 0;
+        while(TRUE) {
+            $exponent = (float) bcpow("10", "$n", 0);
+            foreach ($m as $multiplier) {
+                $x = (float) bcmul("$multiplier", "$exponent", 0);
+                    if ($x === $value) {
+                        if ($mode === 'gte' || $mode === 'lte') {
+                            $output = (isset($negative)) ? bcmul(-1, $x, 0) : $x;
+                        }
+                        if (($mode === 'lt' && !isset($negative)) || ($mode === 'gt' && isset($negative))) {
+                            $output = (isset($negative)) ? bcmul(-1, $lastX, 0) : $lastX;
+                        }
+                    }
+                    if ($x > $value) {
+                        $x = (isset($negative)) ? bcmul(-1, $x, 0) : $x;
+                        $lastX = (isset($negative)) ? bcmul(-1, $lastX, 0) : $lastX;
+                        $output = ($mode === 'gte' || $mode === 'gt') ? max([$x, $lastX]) : min([$x, $lastX]);
+                    }
+                    if (isset($output)) {
+                        return (int) $output;
+                    }
+                $lastX = $x;
+            }
+            $n++;
+        }
+    }
+
 }
 
 ?>
