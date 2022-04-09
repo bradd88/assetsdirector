@@ -1,5 +1,6 @@
 <?php 
 
+/** Creates line graph data that can be used to dynamically draw a graph. */
 class Graph
 {
     private array $unplottedLines;
@@ -24,6 +25,7 @@ class Graph
         $this->unplottedLines[] = (object) array('label' => $label, 'color' => $color, 'coordinates' => $coordinates);
     }
 
+    /** Add label affixes for the x or y axis */
     public function addLabel(string $axisName, string $affixType, string $affixString): void
     {
         $this->labels[] = (object) ['axis' => $axisName, 'type' => $affixType, 'string' => $affixString];
@@ -102,6 +104,7 @@ class Graph
         );
     }
 
+    /** Calculate the pixel position of the coordinate plane origin (0,0) */
     private function findOriginPosition(): object
     {
         $x = $this->calculateValuePosition($this->xAxis, 0, FALSE);
@@ -140,6 +143,7 @@ class Graph
         return (int) $output;
     }
 
+    /** Add the supplied affix data to the object properties. */
     private function applyLabelAffixes(): void
     {
         foreach ($this->labels as $label) {
