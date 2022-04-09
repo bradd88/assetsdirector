@@ -8,31 +8,19 @@ function drawGraph(graph) {
     let graphWidth = graph.xAxis.stopPixel - graph.xAxis.startPixel;
     let graphHeight = graph.yAxis.stopPixel - graph.yAxis.startPixel;
     context.rect(graph.xAxis.startPixel, graph.yAxis.startPixel, graphWidth, graphHeight);
-    context.lineWidth = 2;
+    context.lineWidth = 1;
     context.fillStyle = "white";
     context.fill();
-    context.strokeStyle = "grey";
-    context.stroke();
-
-    // Draw the x and y axis lines
-    context.lineWidth = 2;
-    context.strokeStyle = "black";
-    context.beginPath();
-    context.moveTo(graph.xAxis.startPixel, graph.origin.yPixel);
-    context.lineTo(graph.xAxis.stopPixel, graph.origin.yPixel);
-    context.stroke();
-    context.beginPath();
-    context.moveTo(graph.origin.xPixel, graph.yAxis.startPixel);
-    context.lineTo(graph.origin.xPixel, graph.yAxis.stopPixel);
+    context.strokeStyle = "lightgrey";
     context.stroke();
 
 
-    // Set gridline style
+    // Set gridline and label style
     context.setLineDash([5, 5]);
     context.lineWidth = 1;
     context.strokeStyle = "lightgrey";
     context.fillStyle = "grey";
-    context.font = "12px Arial";
+    context.font = "16px Arial";
     context.textAlign = "left";
 
     // Draw vertical gridlines and labels
@@ -50,7 +38,7 @@ function drawGraph(graph) {
         context.translate(currentPixel, graph.yAxis.startPixel);
         context.rotate(Math.PI/3);
         context.textAlign = 'left';
-        let labelText = graph.xAxis.labelPrefix + currentValue + graph.xAxis.labelSuffix;
+        let labelText = graph.xAxis.labelPrefix + currentValue.toLocaleString("en-US") + graph.xAxis.labelSuffix;
         context.fillText(labelText, 5, 8);
         context.restore();
         // Move to the next gridline
@@ -71,7 +59,7 @@ function drawGraph(graph) {
         context.stroke();
         // Add the label
         context.textAlign = 'right';
-        let labelText = graph.yAxis.labelPrefix + currentValue + graph.yAxis.labelSuffix;
+        let labelText = graph.yAxis.labelPrefix + currentValue.toLocaleString("en-US") + graph.yAxis.labelSuffix;
         context.fillText(labelText, graph.xAxis.startPixel - 5, currentPixel + 4);
         // Move to the next gridline
         gridCount += 1;
@@ -79,11 +67,21 @@ function drawGraph(graph) {
         currentValue += graph.yAxis.gridValueIncrement;
     }
 
+    // Draw the x and y axis lines
+    context.lineWidth = 3;
+    context.strokeStyle = "black";
+    context.setLineDash([20, 10]);
+    context.beginPath();
+    context.moveTo(graph.xAxis.startPixel, graph.origin.yPixel);
+    context.lineTo(graph.xAxis.stopPixel, graph.origin.yPixel);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(graph.origin.xPixel, graph.yAxis.startPixel);
+    context.lineTo(graph.origin.xPixel, graph.yAxis.stopPixel);
+    context.stroke();
+
     // Draw lines
-    context.font = "16px Arial";
-    context.textAlign = "left";
     context.fillStyle = "black";
-    context.lineCap = "square";
     context.lineJoin = "bevel";
     context.setLineDash([]);
     context.lineWidth = 2;

@@ -1,4 +1,4 @@
-<canvas id="graph" width="<?= $graph->width ?>" height="<?= $graph->height ?>" style="border:1px solid #d3d3d3;"> Unsupported browser.</canvas>
+<canvas id="graph" width="<?= $graph->width ?>" height="<?= $graph->height ?>" style="border:0px;"> Unsupported browser.</canvas>
 <script type="text/javascript">
     let graphData = <?= json_encode($graph) ?>;
     <?= file_get_contents($this->appSettings->rootDir . '/view/presentation/graph.js') ?>
