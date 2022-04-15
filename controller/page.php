@@ -14,6 +14,7 @@ class Page
     private TransactionList $transactionList;
     private TradeListFactory $tradeListFactory;
     private Calendar $calendar;
+    private View $view;
 
     public function __construct(
         Config $config,
@@ -25,7 +26,8 @@ class Page
         GraphFactory $graphFactory,
         TransactionList $transactionList,
         TradeListFactory $tradeListFactory,
-        Calendar $calendar
+        Calendar $calendar,
+        View $view
 
         )
     {
@@ -39,6 +41,7 @@ class Page
         $this->transactionList = $transactionList;
         $this->tradeListFactory = $tradeListFactory;
         $this->calendar = $calendar;
+        $this->view = $view;
     }
 
     /** Take the page request and determine if the user needs to be redirected to the login page before generating the requested page. */
@@ -88,7 +91,7 @@ class Page
         switch ($page) {
             case 'login':
                 $message = (isset($message)) ? $message : 'Please Login.' ;
-                $content = $this->getView('page/login.phtml', ['message' => $message, 'requested' => $this->request->get->page]);
+                $content = $this->view->get('page/login.phtml', ['message' => $message, 'requested' => $this->request->get->page]);
                 break;
                 
             case 'logout':
@@ -97,7 +100,7 @@ class Page
                 break;
                 
             case 'home':
-                $content = $this->getView('page/home.phtml');
+                $content = $this->view->get('page/home.phtml');
                 break;
                 
             case 'transactions':
@@ -108,7 +111,7 @@ class Page
                     'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
                 ]);
                 $transactions = $this->transactionList->create($databaseResults);
-                $content = $this->getView('page/transactions.phtml', ['transactions' => $transactions, 'outstandingAssets' => $this->transactionList->outstandingAssets]);
+                $content = $this->view->get('page/transactions.phtml', ['transactions' => $transactions, 'outstandingAssets' => $this->transactionList->outstandingAssets]);
                 break;
                 
             case 'trades':
@@ -144,11 +147,11 @@ class Page
                 }
                 $finalTradeList->sortTrades();
                 $finalTradeList->addStatistics();
-                $content = $this->getView('page/trades.phtml', ['calendar' => $this->calendar, 'trades' => $finalTradeList->getTrades()]);
+                $content = $this->view->get('page/trades.phtml', ['calendar' => $this->calendar, 'trades' => $finalTradeList->getTrades()]);
                 break;
                 
             case 'summary':
-                $content = $this->getView('page/summary.phtml');
+                $content = $this->view->get('page/summary.phtml');
                 break;
 
             case 'account':
@@ -163,41 +166,22 @@ class Page
                 $refreshTokenStatus = ($accountApiInfo->refreshTokenExpiration > time()) ? 'Current' : 'Expired';
                 $accessTokenStatus = ($accountApiInfo->accessTokenExpiration > time()) ? 'Current' : 'Expired';
 
-                $content = $this->getView('page/account.phtml', ['consumerKey' => $accountApiInfo->consumerKey, 'redirectUri' => $accountApiInfo->redirectUri, 'refreshTokenStatus' => $refreshTokenStatus, 'accessTokenStatus' => $accessTokenStatus]);
+                $content = $this->view->get('page/account.phtml', ['consumerKey' => $accountApiInfo->consumerKey, 'redirectUri' => $accountApiInfo->redirectUri, 'refreshTokenStatus' => $refreshTokenStatus, 'accessTokenStatus' => $accessTokenStatus]);
 
                 break;
             
             default:
-                $content = $this->getView('page/404.phtml');
+                $content = $this->view->get('page/404.phtml');
                 break;
         }
         
         // Build and output the page.
-            $css = $this->getView('presentation/style.css');
-            $menu = ($page === 'login') ? '' : $this->getView('presentation/menu.phtml');
-            $output = $this->getView('presentation/layout.phtml', ['css' => $css, 'menu' => $menu, 'content' => $content]);
+            $css = $this->view->get('presentation/style.css');
+            $menu = ($page === 'login') ? '' : $this->view->get('presentation/menu.phtml');
+            $output = $this->view->get('presentation/layout.phtml', ['css' => $css, 'menu' => $menu, 'content' => $content]);
             $output = preg_replace('( {4})', '', $output);
             return $output;
     }
-
-    /** Generate presentation object code for the specefied view. */
-    private function getView(string $name, ?array $parameters = NULL): string
-    {
-        // Move variables out of the optional parameters array for easier use.
-        if (isset($parameters)) {
-            foreach ($parameters as $key => $value) {
-                $$key = $value;
-            }
-        }
-        // Use the internal buffer to parse the view file and return it as a string.
-        $path = $this->appSettings->rootDir . '/view/' . $name;
-        ob_start();
-        require $path;
-        $view = ob_get_contents();
-        ob_end_clean();
-        return $view;
-    }
-
 
 }
 
