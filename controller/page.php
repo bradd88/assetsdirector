@@ -11,8 +11,23 @@ class Page
     private Request $request;
     private TdaApi $tdaApi;
     private GraphFactory $graphFactory;
+    private TransactionList $transactionList;
+    private TradeListFactory $tradeListFactory;
+    private Calendar $calendar;
 
-    public function __construct(Config $config, MySql $mySql, Session $session, Log $log, Request $request, TdaApi $tdaApi, GraphFactory $graphFactory)
+    public function __construct(
+        Config $config,
+        MySql $mySql,
+        Session $session,
+        Log $log,
+        Request $request,
+        TdaApi $tdaApi,
+        GraphFactory $graphFactory,
+        TransactionList $transactionList,
+        TradeListFactory $tradeListFactory,
+        Calendar $calendar
+
+        )
     {
         $this->appSettings = $config->getSettings('application');
         $this->mySql = $mySql;
@@ -21,6 +36,9 @@ class Page
         $this->request = $request;
         $this->tdaApi = $tdaApi;
         $this->graphFactory = $graphFactory;
+        $this->transactionList = $transactionList;
+        $this->tradeListFactory = $tradeListFactory;
+        $this->calendar = $calendar;
     }
 
     /** Take the page request and determine if the user needs to be redirected to the login page before generating the requested page. */
@@ -83,42 +101,50 @@ class Page
                 break;
                 
             case 'transactions':
-                // Retrieve transaction data and mark potential errors by looking for impossible transactions.
-                $transactionsData = $this->mySql->read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
-                if (count($transactionsData) > 0) {
-                    $transactionDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
-                    $transactionDataParsed = calculateOutstanding($transactionDataFiltered);
-                    $content = $this->getView('page/transactions.phtml', ['transactions' => $transactionDataParsed]);
-                } else {
-                    $content = $this->getView('page/transactions.phtml', ['transactions' => []]);
-                }
+                $databaseResults = $this->mySql->read('transactions', [
+                    'account_id' => $this->session->accountId,
+                    'type' => 'TRADE',
+                    'assetType' => 'EQUITY',
+                    'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
+                ]);
+                $transactions = $this->transactionList->create($databaseResults);
+                $content = $this->getView('page/transactions.phtml', ['transactions' => $transactions, 'outstandingAssets' => $this->transactionList->outstandingAssets]);
                 break;
                 
             case 'trades':
-                // Calculate trades using transaction data.
-                $transactionsData = $this->mySql->read('transactions', ['account_id' => $this->session->accountId, 'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]);
-                if (count($transactionsData) > 0) {
-                    $transactionsDataFiltered = filterTransactions($transactionsData, 'TRADE', 'EQUITY', 'AMD');
-                    $tradeList = new TradeList($transactionsDataFiltered);
-                    if (count($tradeList->trades) > 0) {
-                        $table = $this->getView('page/trades.phtml', ['trades' => $tradeList->trades]);
-
-                        // Calculate parameters from trade data and draw a graph using javascript.
-                        $graph = $this->graphFactory->create();
-                        $graph->addLine('Profit and Loss', 'green', $tradeList->graphCoordinates);
-                        $graph->addLabel('x', 'suffix', ' trades');
-                        $graph->addLabel('y', 'prefix', '$');
-                        $graph->generate(1600, 800, 25, [10, 10, 100, 100], TRUE);
-
-                        $graphPresentation = $this->getView('presentation/graph.phtml', ['graph' => $graph]);
-                        $content = $graphPresentation . $table;
-                    } else {
-                        $content = $this->getView('page/trades.phtml', ['trades' => []]);
+                $databaseResults = $this->mySql->read('transactions', [
+                    'account_id' => $this->session->accountId,
+                    'type' => 'TRADE',
+                    'assetType' => 'EQUITY',
+                    'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
+                ]);
+                $transactionList = $this->transactionList->create($databaseResults);
+                // Create a seperate trade list for each combination of transaction symbol and asset type.
+                $tradeLists = array();
+                foreach ($transactionList as $transaction) {
+                    if (!isset($tradeLists[$transaction->symbol])) {
+                        $tradeLists[$transaction->symbol] = array();
                     }
-                } else {
-                    $content = $this->getView('page/trades.phtml', ['trades' => []]);
+                    if (!isset($tradeLists[$transaction->symbol][$transaction->assetType])) {
+                        $tradeLists[$transaction->symbol][$transaction->assetType] = $this->tradeListFactory->create();
+                    }
+                    /** @var TradeList $tradeList */
+                    $tradeList = $tradeLists[$transaction->symbol][$transaction->assetType];
+                    $tradeList->addTransaction($transaction);
                 }
-
+                // Recombine the lists and sort by trade finish date/time.
+                $finalTradeList = $this->tradeListFactory->create();
+                foreach ($tradeLists as $symbol) {
+                    foreach ($symbol as $assetType) {
+                        /** @var TradeList $assetType */
+                        foreach ($assetType->getTrades() as $trade) {
+                            $finalTradeList->addTrade($trade);
+                        }
+                    }
+                }
+                $finalTradeList->sortTrades();
+                $finalTradeList->addStatistics();
+                $content = $this->getView('page/trades.phtml', ['calendar' => $this->calendar, 'trades' => $finalTradeList->getTrades()]);
                 break;
                 
             case 'summary':
@@ -166,7 +192,7 @@ class Page
         // Use the internal buffer to parse the view file and return it as a string.
         $path = $this->appSettings->rootDir . '/view/' . $name;
         ob_start();
-        require_once $path;
+        require $path;
         $view = ob_get_contents();
         ob_end_clean();
         return $view;
