@@ -3,86 +3,55 @@
 /** Page navigation controller that handles data between the models and views. Returns a string containing html that can be displayed to the end user. */
 class Page
 {
-
-    private object $appSettings;
     private MySql $mySql;
-    private Session $session;
-    private Log $log;
+    private View $view;
+    private Login $login;
     private Request $request;
     private TdaApi $tdaApi;
     private GraphFactory $graphFactory;
     private TransactionList $transactionList;
     private TradeListFactory $tradeListFactory;
     private Calendar $calendar;
-    private View $view;
 
     public function __construct(
-        Config $config,
         MySql $mySql,
-        Session $session,
-        Log $log,
+        View $view,
+        Login $login,
         Request $request,
         TdaApi $tdaApi,
         GraphFactory $graphFactory,
         TransactionList $transactionList,
         TradeListFactory $tradeListFactory,
-        Calendar $calendar,
-        View $view
-
+        Calendar $calendar
         )
     {
-        $this->appSettings = $config->getSettings('application');
         $this->mySql = $mySql;
-        $this->session = $session;
-        $this->log = $log;
+        $this->view = $view;
+        $this->login = $login;
         $this->request = $request;
         $this->tdaApi = $tdaApi;
         $this->graphFactory = $graphFactory;
         $this->transactionList = $transactionList;
         $this->tradeListFactory = $tradeListFactory;
         $this->calendar = $calendar;
-        $this->view = $view;
     }
 
-    /** Take the page request and determine if the user needs to be redirected to the login page before generating the requested page. */
+    /** Examine the request to determine if the user needs to be redirected to the login page before generating the requested page. */
     public function exec(): string
     {
-        if (!isset($this->request->get->page) || $this->request->get->page === 'login') {
-            $this->request->get->page = 'home';
-        }
-        if ($this->session->check() === FALSE) {
-            return $this->requireLogin();
-        } else {
-            return $this->generate($this->request->get->page);
-        }
-    }
-
-    /** Attempt to login the user. */
-    private function requireLogin(): string
-    {
-        // User attempting to access a page when not logged in.
-        if (!isset($this->request->post->username) && !isset($this->request->post->password)) {
-            // Display login page.
-            return $this->generate('login');
-        }
-
-        // User attempting to login.
-        if (isset($this->request->post->username) && isset($this->request->post->password)) {
-            // Verify account/password supplied are correct.
-            $userId = $this->mySql->verifyLogin($this->request->post->username, $this->request->post->password);
-            if ($userId === FALSE) {
-                // Login unsuccessful, display the login page and record the failed attempt.
-                $logMessage = 'Failed Login - IP: ' . $this->request->server->REMOTE_ADDR . ' User: ' . $this->request->post->username . ' Pass: ' . $this->request->post->password;
-                $this->log->save('login_failure', $logMessage);
-                return $this->generate('login', 'Incorrect Username/Password.');
+        $this->request->get->page = $this->request->get->page ?? 'home';
+        $this->request->get->page = ($this->request->get->page === 'login') ? 'home' : $this->request->get->page;
+        if ($this->login->status() === FALSE) {
+            if (isset($this->request->post->username) && isset($this->request->post->password)) {
+                $loginAttempt = $this->login->attemptLogin($this->request->post->username, $this->request->post->password, $this->request->server->REMOTE_ADDR);
+                if ($loginAttempt === FALSE) {
+                    return $this->generate('login', 'Incorrect username/password.');
+                }
             } else {
-                // Login successful, display the requested page and record the login.
-                $this->session->login($userId);
-                $logMessage = 'Successful Login - IP: ' . $this->request->server->REMOTE_ADDR . ' User: ' . $this->request->post->username;
-                $this->log->save('login_success', $logMessage);
-                return $this->generate($this->request->get->page);
+                return $this->generate('login', 'Please login.');
             }
         }
+        return $this->generate($this->request->get->page);
     }
 
     /** Retrieve data for a requested page. */
@@ -90,12 +59,11 @@ class Page
     {
         switch ($page) {
             case 'login':
-                $message = (isset($message)) ? $message : 'Please Login.' ;
                 $content = $this->view->get('page/login.phtml', ['message' => $message, 'requested' => $this->request->get->page]);
                 break;
                 
             case 'logout':
-                $this->session->stop();
+                $this->login->logout();
                 header("Location: ./");
                 break;
                 
@@ -105,7 +73,7 @@ class Page
                 
             case 'transactions':
                 $databaseResults = $this->mySql->read('transactions', [
-                    'account_id' => $this->session->accountId,
+                    'account_id' => $this->login->getAccountId(),
                     'type' => 'TRADE',
                     'assetType' => 'EQUITY',
                     'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
@@ -116,7 +84,7 @@ class Page
                 
             case 'trades':
                 $databaseResults = $this->mySql->read('transactions', [
-                    'account_id' => $this->session->accountId,
+                    'account_id' => $this->login->getAccountId(),
                     'type' => 'TRADE',
                     'assetType' => 'EQUITY',
                     'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
@@ -158,11 +126,11 @@ class Page
 
                 // If a permission grant code has been submitted then generate new TDA tokens for the account.
                 if (isset($this->request->get->code)) {
-                    $this->tdaApi->createTokens($this->session->accountId, htmlspecialchars($this->request->get->code, ENT_QUOTES));
+                    $this->tdaApi->createTokens($this->login->getAccountId(), htmlspecialchars($this->request->get->code, ENT_QUOTES));
                 }
 
                 // Get the refresh token status
-                $accountApiInfo = $this->mySql->read('tda_api', ['account_id' => $this->session->accountId])[0];
+                $accountApiInfo = $this->mySql->read('tda_api', ['account_id' => $this->login->getAccountId()])[0];
                 $refreshTokenStatus = ($accountApiInfo->refreshTokenExpiration > time()) ? 'Current' : 'Expired';
                 $accessTokenStatus = ($accountApiInfo->accessTokenExpiration > time()) ? 'Current' : 'Expired';
 
