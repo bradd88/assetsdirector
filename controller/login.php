@@ -35,7 +35,7 @@ class Login
     /** Logout the current user. */
     public function logout(): void
     {
-        $this->accountId = NULL;
+        unset($this->accountId);
         session_unset();
         session_destroy();
     }
