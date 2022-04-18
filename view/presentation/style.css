@@ -8,6 +8,7 @@
 }
 #nav {
     margin: 15px;
+    overflow: hidden;
 }
 #main {
     margin: 15px;
@@ -36,9 +37,26 @@
     border: 2px solid black;
     border-radius: 4px;
 }
-.link {
+.nav-item {
+    width: 100%;
+    display: block;
+    text-align: left;
+    border: none;
+    white-space: normal;
+    float: none;
+    outline: 0;
     cursor: pointer;
+    user-select: none;
+    text-decoration: none;
+    font-family: "Raleway", sans-serif;
+    font-size: 16px;
+    line-height: 2;
+    color: black;
 }
+.nav-item:hover {
+    color: white;
+    background-color: #2196F3;
+  }
 table {
     position:relative;
     width: 100%;
@@ -48,16 +66,14 @@ table {
 tr {
     border-top: 1px solid black;
 }
-.td {
-    display: table-cell;
-    padding: 10px;
-    vertical-align: top;
-}
 tr:nth-child(even) {
     background: #e7ecf0;
 }
 tr:nth-child(odd) {
     background: #e0e3e6;
+}
+tr:hover {
+    background: white;
 }
 th {
     position:sticky;
