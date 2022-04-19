@@ -83,6 +83,7 @@ class Page
                 break;
                 
             case 'trades':
+                // Create the list of transactions
                 $databaseResults = $this->mySql->read('transactions', [
                     'account_id' => $this->login->getAccountId(),
                     'type' => 'TRADE',
@@ -90,6 +91,7 @@ class Page
                     'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
                 ]);
                 $transactionList = $this->transactionList->create($databaseResults);
+
                 // Create a seperate trade list for each combination of transaction symbol and asset type.
                 $tradeLists = array();
                 foreach ($transactionList as $transaction) {
@@ -103,7 +105,7 @@ class Page
                     $tradeList = $tradeLists[$transaction->symbol][$transaction->assetType];
                     $tradeList->addTransaction($transaction);
                 }
-                // Recombine the lists and sort by trade finish date/time.
+                // Recombine the lists into one.
                 $finalTradeList = $this->tradeListFactory->create();
                 foreach ($tradeLists as $symbol) {
                     foreach ($symbol as $assetType) {
@@ -113,9 +115,21 @@ class Page
                         }
                     }
                 }
+                // Sort and process the final list.
                 $finalTradeList->sortTrades();
                 $finalTradeList->addStatistics();
-                $content = $this->view->get('page/trades.phtml', ['calendar' => $this->calendar, 'trades' => $finalTradeList->getTrades()]);
+                $tradeTable = $this->view->get('page/trades.phtml', ['calendar' => $this->calendar, 'trades' => $finalTradeList->getTrades()]);
+
+                // Generate graph data from the trade list, and create the graph.
+                $graphData = $finalTradeList->generateGraphData();
+                $graph = $this->graphFactory->create();
+                $graph->addLine('Returns', 'black', $graphData);
+                $graph->generate(2000, 1000, 25, [100, 100, 100, 100], TRUE);
+                $graphCanvas = $this->view->get('presentation/graph.phtml', ['graph' => $graph]);
+
+                // Display the page with the graph and trade list.
+                $content = $graphCanvas . $tradeTable;
+                //$content = $tradeTable;
                 break;
                 
             case 'summary':

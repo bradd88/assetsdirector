@@ -76,6 +76,18 @@ class TradeList
         $this->tradeCount = count($this->trades);
     }
 
+    /** Create graph coordinates using the trade close time and return as the x and y coordinates. */
+    public function generateGraphData(): array
+    {
+        $coordArray = array();
+        foreach ($this->getTrades() as $trade) {
+            $dayNumberOfYear = new DateTime('@' . $trade->closeTimestamp);
+            $dayOfYear = $dayNumberOfYear->format('z') + 1;
+            $coordArray[] = array($dayOfYear, $trade->runningReturn);
+        }
+        return $coordArray;
+    }
+
     /** Comparison function for quicksort. Sorts descending by closeing timestamp */
     private function sortComparison(Trade $a, Trade $b): int
     {

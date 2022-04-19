@@ -16,7 +16,6 @@ class Graph
 
     public function __construct()
     {
-        
     }
 
     /** Add a line to the graph. */
@@ -40,7 +39,8 @@ class Graph
         $values = $this->findMinMaxValues($this->unplottedLines);
         $this->xAxis = $this->createAxis($values['xAxisMin'], $values['xAxisMax'], $canvasWidth, $maxGridCount, [$margins[3], $margins[1]], FALSE);
         $this->yAxis = $this->createAxis($values['yAxisMin'], $values['yAxisMax'], $canvasHeight, $maxGridCount, [$margins[2], $margins[0]], $this->invertedYAxis);
-        $this->origin = $this->findOriginPosition();
+        $this->plotGridLines($this->xAxis, FALSE);
+        $this->plotGridLines($this->yAxis, $this->invertedYAxis);
         $this->applyLabelAffixes();
         $this->plotLines();
     }
@@ -104,14 +104,18 @@ class Graph
         );
     }
 
-    /** Calculate the pixel position of the coordinate plane origin (0,0) */
-    private function findOriginPosition(): object
+    private function plotGridLines(object $axis, bool $inverted): void
     {
-        $x = $this->calculateValuePosition($this->xAxis, 0, FALSE);
-        $y = $this->calculateValuePosition($this->yAxis, 0, $this->invertedYAxis);
-        return (object) array('xPixel' => $x, 'yPixel' => $y);
+        $axis->gridLines = array();
+        $gridLineCount = 0;
+        while ($gridLineCount <= $axis->gridCount) {
+            $gridLineValue = bcmul($gridLineCount, $axis->gridValueIncrement);
+            $gridLineValueWithOffset = (int) bcadd($gridLineValue, $axis->startValue);
+            $pixelPosition = $this->calculateValuePosition($axis, $gridLineValueWithOffset, $inverted);
+            $axis->gridLines[] = array('pixel' => $pixelPosition, 'value' => $gridLineValueWithOffset);
+            $gridLineCount++;
+        }
     }
-
 
     /** Calculate pixel positions for point coordinates in all lines, and save the plotted lines. */
     private function plotLines(): void
@@ -133,8 +137,9 @@ class Graph
     /** Calculate the pixel position of a coordinate on an axis. */
     private function calculateValuePosition(object $axis, float $value, bool $inverted): int
     {
+        $pixelToValueRatio = sprintf('%f', $axis->pixelToValueRatio);
         $valueDistanceFromStart = bcsub($value, $axis->startValue, 0);
-        $pixelDistanceFromStart = bcmul($valueDistanceFromStart, $axis->pixelToValueRatio, 0);
+        $pixelDistanceFromStart = bcmul($valueDistanceFromStart, $pixelToValueRatio, 0);
         if ($inverted === FALSE) {
             $output = bcadd($axis->startPixel, $pixelDistanceFromStart, 0);
         } else {
@@ -146,22 +151,24 @@ class Graph
     /** Add the supplied affix data to the object properties. */
     private function applyLabelAffixes(): void
     {
-        foreach ($this->labels as $label) {
-            if ($label->axis === 'x') {
+        if (isset($this->labels)) {
+            foreach ($this->labels as $label) {
+                if ($label->axis === 'x') {
+                    if ($label->type === 'prefix') {
+                        $this->xAxis->labelPrefix = $label->string;
+                    }
+                    if ($label->type === 'suffix') {
+                        $this->xAxis->labelSuffix = $label->string;
+                    }
+                }
+            }
+            if ($label->axis === 'y') {
                 if ($label->type === 'prefix') {
-                    $this->xAxis->labelPrefix = $label->string;
+                    $this->yAxis->labelPrefix = $label->string;
                 }
                 if ($label->type === 'suffix') {
-                    $this->xAxis->labelSuffix = $label->string;
+                    $this->yAxis->labelSuffix = $label->string;
                 }
-            }
-        }
-        if ($label->axis === 'y') {
-            if ($label->type === 'prefix') {
-                $this->yAxis->labelPrefix = $label->string;
-            }
-            if ($label->type === 'suffix') {
-                $this->yAxis->labelSuffix = $label->string;
             }
         }
     }

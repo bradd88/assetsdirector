@@ -1,99 +1,100 @@
-function drawGraph(graph) { 
-
-    console.log(graph);
-    let canvas = document.getElementById("graph");
-    let context = canvas.getContext("2d");
-
-    // Draw a border around the graph
-    let graphWidth = graph.xAxis.stopPixel - graph.xAxis.startPixel;
-    let graphHeight = graph.yAxis.stopPixel - graph.yAxis.startPixel;
-    context.rect(graph.xAxis.startPixel, graph.yAxis.startPixel, graphWidth, graphHeight);
-    context.lineWidth = 1;
-    context.fillStyle = "white";
-    context.fill();
-    context.strokeStyle = "lightgrey";
-    context.stroke();
-
-
-    // Set gridline and label style
-    context.setLineDash([5, 5]);
-    context.lineWidth = 1;
-    context.strokeStyle = "lightgrey";
-    context.fillStyle = "grey";
-    context.font = "16px Arial";
-    context.textAlign = "left";
-
-    // Draw vertical gridlines and labels
-    gridCount = 0;
-    currentPixel = graph.xAxis.startPixel;
-    currentValue = graph.xAxis.startValue;
-    while (gridCount < graph.xAxis.gridCount) {
-        // Draw the gridline
-        context.beginPath();
-        context.moveTo(currentPixel, graph.yAxis.startPixel);
-        context.lineTo(currentPixel, graph.yAxis.stopPixel);
-        context.stroke();
-        // Add the rotated label.
-        context.save();
-        context.translate(currentPixel, graph.yAxis.startPixel);
-        context.rotate(Math.PI/3);
-        context.textAlign = 'left';
-        let labelText = graph.xAxis.labelPrefix + currentValue.toLocaleString("en-US") + graph.xAxis.labelSuffix;
-        context.fillText(labelText, 5, 8);
-        context.restore();
-        // Move to the next gridline
-        gridCount += 1;
-        currentPixel += graph.xAxis.gridPixelIncrement;
-        currentValue += graph.xAxis.gridValueIncrement;
+class graph
+{
+    constructor(graphData)
+    {
+        this.canvas = document.getElementById("graph");
+        this.context = this.canvas.getContext("2d");
+        this.graphData = graphData;
+        this.create();
     }
 
-    // Draw horizontal gridlines and labels
-    gridCount = 0;
-    currentPixel = graph.yAxis.startPixel;
-    currentValue = graph.yAxis.startValue;
-    while (gridCount < graph.yAxis.gridCount) {
-        // Draw the gridline
-        context.beginPath();
-        context.moveTo(graph.xAxis.startPixel, currentPixel);
-        context.lineTo(graph.xAxis.stopPixel, currentPixel);
-        context.stroke();
-        // Add the label
-        context.textAlign = 'right';
-        let labelText = graph.yAxis.labelPrefix + currentValue.toLocaleString("en-US") + graph.yAxis.labelSuffix;
-        context.fillText(labelText, graph.xAxis.startPixel - 5, currentPixel + 4);
-        // Move to the next gridline
-        gridCount += 1;
-        currentPixel -= graph.yAxis.gridPixelIncrement;
-        currentValue += graph.yAxis.gridValueIncrement;
-    }
-
-    // Draw the x and y axis lines
-    context.lineWidth = 3;
-    context.strokeStyle = "black";
-    context.setLineDash([20, 10]);
-    context.beginPath();
-    context.moveTo(graph.xAxis.startPixel, graph.origin.yPixel);
-    context.lineTo(graph.xAxis.stopPixel, graph.origin.yPixel);
-    context.stroke();
-    context.beginPath();
-    context.moveTo(graph.origin.xPixel, graph.yAxis.startPixel);
-    context.lineTo(graph.origin.xPixel, graph.yAxis.stopPixel);
-    context.stroke();
-
-    // Draw lines
-    context.fillStyle = "black";
-    context.lineJoin = "bevel";
-    context.setLineDash([]);
-    context.lineWidth = 2;
-    for (line of graph.lines) {
-        context.strokeStyle = line.color;
-        context.beginPath();
-        context.moveTo(graph.origin.xPixel, graph.origin.yPixel);
-        for (point of line.points) {
-            context.lineTo(point.xPos, point.yPos);
-            context.moveTo(point.xPos, point.yPos);
+    create()
+    {
+        this.drawbackground('white');
+        this.drawGridlines('x', this.graphData.xAxis, this.graphData.yAxis.startPixel, this.graphData.yAxis.stopPixel);
+        this.drawGridlines('y', this.graphData.yAxis, this.graphData.xAxis.startPixel, this.graphData.xAxis.stopPixel);
+        for (let line of this.graphData.lines) {
+            this.drawLine(line);
         }
-        context.stroke();
+        this.drawBorder('black', 1);
     }
 
-} 
+    drawGraphAreaRect()
+    {
+        let width = this.graphData.xAxis.stopPixel - this.graphData.xAxis.startPixel;
+        let height = this.graphData.yAxis.stopPixel - this.graphData.yAxis.startPixel;
+        this.context.rect(this.graphData.xAxis.startPixel, this.graphData.yAxis.startPixel, width, height);
+    }
+
+    drawbackground(color)
+    {
+        this.drawGraphAreaRect();
+        this.context.fillStyle = color;
+        this.context.fill();
+    }
+
+    drawGridlines(axisName, axis, oppositeAxisStartPixel, oppositeAxisStopPixel)
+    {
+        this.context.lineWidth = 1;
+        this.context.fillStyle = "grey";
+        this.context.font = "16px Arial";
+        for (let gridLine of axis.gridLines) {
+            let lastGridLinesIndex = axis.gridLines.length - 1;
+            if (axis.gridLines.indexOf(gridLine) !== 0 && axis.gridLines.indexOf(gridLine) !== lastGridLinesIndex) {
+                this.context.beginPath();
+                if (axisName === 'x') {
+                    this.context.moveTo(gridLine.pixel, oppositeAxisStartPixel);
+                    this.context.lineTo(gridLine.pixel, oppositeAxisStopPixel);
+                }
+                if (axisName === 'y') {
+                    this.context.moveTo(oppositeAxisStartPixel, gridLine.pixel);
+                    this.context.lineTo(oppositeAxisStopPixel, gridLine.pixel);
+                }
+                if (gridLine.value === 0) {
+                    this.context.setLineDash([25, 25]);
+                    this.context.strokeStyle = "grey";
+                } else {
+                    this.context.setLineDash([5, 5]);
+                    this.context.strokeStyle = "lightgrey";
+                }
+                this.context.stroke();
+            }
+            let labelText = axis.labelPrefix + gridLine.value.toLocaleString("en-US") + axis.labelSuffix;
+            if (axisName === 'x') {
+                this.context.save();
+                this.context.translate(gridLine.pixel, oppositeAxisStartPixel);
+                this.context.rotate(Math.PI/3);
+                this.context.textAlign = 'left';
+                this.context.fillText(labelText, 5, 8);
+                this.context.restore();
+            }
+            if (axisName === 'y') {
+                this.context.textAlign = 'right';
+                this.context.fillText(labelText, oppositeAxisStartPixel - 5, gridLine.pixel + 4);
+            }
+        }
+    }
+
+    drawLine(line)
+    {
+        this.context.lineWidth = 3;
+        this.context.strokeStyle = line.color;
+        this.context.setLineDash([]);
+        this.context.beginPath();
+        this.context.moveTo(line.points[0].xPos, line.points[0].yPos);
+        for (let point of line.points) {
+            this.context.lineTo(point.xPos, point.yPos);
+            this.context.moveTo(point.xPos, point.yPos);
+        }
+        this.context.stroke();
+    }
+
+    drawBorder(color, lineWidth)
+    {
+        this.drawGraphAreaRect();
+        this.context.strokeStyle = color;
+        this.context.lineWidth = lineWidth;
+        this.context.stroke();
+    }
+
+}
