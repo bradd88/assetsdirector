@@ -38,16 +38,16 @@ class Cli {
                 if ($updateTransactions === TRUE) {
                     $start = '2021-10-01';
                     $end = '2021-10-06';
-                    $this->tdaApi->updateTransactions($account->accound_id, $start, $end);
-                    $this->log->save('cli', 'Updating trasactions for account #' . $account->accound_id . ': ' . $start . ' to ' . $end . '.');
+                    $this->tdaApi->updateTransactions($account->account_id, $start, $end);
+                    $this->log->save('cli', 'Updating trasactions for account #' . $account->account_id . ': ' . $start . ' to ' . $end . '.');
                 }
 
                 $updateOrders = $this->arguments['updateOrders'] ?? FALSE;
                 if ($updateOrders === TRUE) {
                     $start = '2021-10-01';
                     $end = '2021-10-06';
-                    $this->tdaApi->updateOrders();
-                    $this->log->save('cli', 'Updating orders for account #' . $account->accound_id . ': ' . $start . ' to ' . $end . '.');
+                    $this->tdaApi->updateOrders($account->account_id);
+                    $this->log->save('cli', 'Updating orders for account #' . $account->account_id . ': ' . $start . ' to ' . $end . '.');
                 }
             }
         }
