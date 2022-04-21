@@ -1,6 +1,18 @@
-<canvas id="graph" width="<?= $graph->width ?>" height="<?= $graph->height ?>" style="border:0px;"> Unsupported browser.</canvas>
+<canvas id="graph" style="border:0px;"> Unsupported browser.</canvas>
 <script type="text/javascript">
     let graphData = <?= json_encode($graph) ?>;
     <?= file_get_contents($this->appSettings->rootDir . '/view/presentation/graph.js') ?>
-    new graph(graphData);
+    let canvas = new graph(graphData);
+    drawCanvas();
+    window.addEventListener('resize', drawCanvas);
+
+    function drawCanvas() {
+        let canvasWidth = document.getElementById("main").clientWidth;
+        let canvasHeight = canvasWidth / 2;
+        document.getElementById('graph').width = canvasWidth;
+        document.getElementById('graph').height = canvasHeight;
+        document.getElementById('graph').style.width = canvasWidth + "px";
+        document.getElementById('graph').style.height = canvasHeight + "px";
+        canvas.draw(canvasWidth, canvasHeight);
+    }
 </script>

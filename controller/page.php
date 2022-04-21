@@ -88,7 +88,7 @@ class Page
                     'account_id' => $this->login->getAccountId(),
                     'type' => 'TRADE',
                     'assetType' => 'EQUITY',
-                    'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
+                    'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-02-30T00:00:00+0000']
                 ]);
                 $transactionList = $this->transactionList->create($databaseResults);
 
@@ -124,7 +124,7 @@ class Page
                 $graphData = $finalTradeList->generateGraphData();
                 $graph = $this->graphFactory->create();
                 $graph->addLine('Returns', 'black', $graphData);
-                $graph->generate(2000, 1000, 25, [100, 100, 100, 100], TRUE);
+                $graph->generate(25);
                 $graphCanvas = $this->view->get('presentation/graph.phtml', ['graph' => $graph]);
 
                 // Display the page with the graph and trade list.

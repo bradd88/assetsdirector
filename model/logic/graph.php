@@ -3,16 +3,10 @@
 /** Creates line graph data that can be used to dynamically draw a graph. */
 class Graph
 {
-    private array $unplottedLines;
-    private array $labels;
-
-    public int $width;
-    public int $height;
-    public bool $invertedYAxis;
+    public array $unplottedLines;
+    public array $labels;
     public object $xAxis;
     public object $yAxis;
-    public object $origin;
-    public array $lines;
 
     public function __construct()
     {
@@ -31,18 +25,12 @@ class Graph
     }
 
     /** Generate the graph with the specified settings. */
-    public function generate(int $canvasWidth, int $canvasHeight, int $maxGridCount, array $margins, bool $invertYAxis): void
+    public function generate(int $maxGridCount): void
     {
-        $this->width = $canvasWidth;
-        $this->height = $canvasHeight;
-        $this->invertedYAxis = $invertYAxis;
         $values = $this->findMinMaxValues($this->unplottedLines);
-        $this->xAxis = $this->createAxis($values['xAxisMin'], $values['xAxisMax'], $canvasWidth, $maxGridCount, [$margins[3], $margins[1]], FALSE);
-        $this->yAxis = $this->createAxis($values['yAxisMin'], $values['yAxisMax'], $canvasHeight, $maxGridCount, [$margins[2], $margins[0]], $this->invertedYAxis);
-        $this->plotGridLines($this->xAxis, FALSE);
-        $this->plotGridLines($this->yAxis, $this->invertedYAxis);
+        $this->xAxis = $this->createAxis($values['xAxisMin'], $values['xAxisMax'], $maxGridCount);
+        $this->yAxis = $this->createAxis($values['yAxisMin'], $values['yAxisMax'], $maxGridCount);
         $this->applyLabelAffixes();
-        $this->plotLines();
     }
 
     /** Find the minimum and maximum x and y values for an array of coordinates. */
@@ -69,10 +57,9 @@ class Graph
         return array('xAxisMin' => $minValueX, 'xAxisMax' => $maxValueX, 'yAxisMin' => $minValueY, 'yAxisMax' => $maxValueY);
     }
 
-    /** Calculate pixel positions and values for an axis using canvas/margin pixel size: start, stop, and grid increments. */
-    private function createAxis(float $minimumValue, float $maximumValue, int $pixelSize, int $maxGridCount, array $margins, bool $inverted): object
+    /** Calculate values for an axis: start, stop, and grid increments. */
+    private function createAxis(float $minimumValue, float $maximumValue, int $maxGridCount): object
     {
-        $marginTotal = bcadd($margins[0], $margins[1], 0);
         $startValue = $this->closestReadableNumber('lte', $minimumValue);
         $valueRangeMinimum = bcsub("$maximumValue", "$startValue", 10);
         $gridValueIncrementMinimum = bcdiv("$valueRangeMinimum", "$maxGridCount", 10);
@@ -80,72 +67,15 @@ class Graph
         $gridCount = ceil(bcdiv("$valueRangeMinimum", "$gridValueIncrement", 10));
         $valueRange = bcmul("$gridCount", "$gridValueIncrement", 0);
         $stopValue = bcadd("$startValue", "$valueRange", 0);
-        $pixelSizeWithMargin = bcsub("$pixelSize", "$marginTotal", 0);
-        $pixelToValueRatio = bcdiv("$pixelSizeWithMargin", $valueRange, 10);
-        $gridPixelIncrement = bcmul("$pixelToValueRatio", "$gridValueIncrement", 10);
-        $startPixel = $margins[0];
-        $stopPixel = bcsub("$pixelSize", $margins[1], 0);
-        if ($inverted === TRUE) {
-            $startPixel = bcsub($pixelSize, $startPixel, 0);
-            $stopPixel = bcsub($pixelSize, $stopPixel, 0);
-        }
         return (object) array(
             'gridValueIncrement' => (int) $gridValueIncrement,
-            'gridPixelIncrement' => (int) $gridPixelIncrement,
-            'pixelToValueRatio' => (float) $pixelToValueRatio,
             'gridCount' => (int) $gridCount,
             'startValue' => (int) $startValue,
-            'startPixel' => (int) $startPixel,
             'stopValue' => (int) $stopValue,
-            'stopPixel' => (int) $stopPixel,
-            'pixelSize' => (int) $pixelSize,
+            'valueRange' => (int) $valueRange,
             'labelPrefix' => '',
             'labelSuffix' => ''
         );
-    }
-
-    private function plotGridLines(object $axis, bool $inverted): void
-    {
-        $axis->gridLines = array();
-        $gridLineCount = 0;
-        while ($gridLineCount <= $axis->gridCount) {
-            $gridLineValue = bcmul($gridLineCount, $axis->gridValueIncrement);
-            $gridLineValueWithOffset = (int) bcadd($gridLineValue, $axis->startValue);
-            $pixelPosition = $this->calculateValuePosition($axis, $gridLineValueWithOffset, $inverted);
-            $axis->gridLines[] = array('pixel' => $pixelPosition, 'value' => $gridLineValueWithOffset);
-            $gridLineCount++;
-        }
-    }
-
-    /** Calculate pixel positions for point coordinates in all lines, and save the plotted lines. */
-    private function plotLines(): void
-    {
-        foreach ($this->unplottedLines as $unplottedLine) {
-            $points = array();
-            foreach ($unplottedLine->coordinates as $coordinate) {
-                $points[] = (object) array(
-                    'xPos' => $this->calculateValuePosition($this->xAxis, $coordinate[0], FALSE),
-                    'xValue' => $coordinate[0],
-                    'yPos' => $this->calculateValuePosition($this->yAxis, $coordinate[1], $this->invertedYAxis),
-                    'yValue' => $coordinate[1]
-                );
-            }
-            $this->lines[] = (object) array('label' => $unplottedLine->label, 'color' => $unplottedLine->color, 'points' => $points);
-        }
-    }
-
-    /** Calculate the pixel position of a coordinate on an axis. */
-    private function calculateValuePosition(object $axis, float $value, bool $inverted): int
-    {
-        $pixelToValueRatio = sprintf('%f', $axis->pixelToValueRatio);
-        $valueDistanceFromStart = bcsub($value, $axis->startValue, 0);
-        $pixelDistanceFromStart = bcmul($valueDistanceFromStart, $pixelToValueRatio, 0);
-        if ($inverted === FALSE) {
-            $output = bcadd($axis->startPixel, $pixelDistanceFromStart, 0);
-        } else {
-            $output = bcsub($axis->startPixel, $pixelDistanceFromStart, 0);
-        }
-        return (int) $output;
     }
 
     /** Add the supplied affix data to the object properties. */

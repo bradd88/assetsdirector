@@ -5,11 +5,18 @@ class graph
         this.canvas = document.getElementById("graph");
         this.context = this.canvas.getContext("2d");
         this.graphData = graphData;
-        this.create();
     }
 
-    create()
+    draw(canvasWidth, canvasHeight)
     {
+        // Calculate graph dimensions based on canvas size.
+        let invertedY = true;
+        this.calculateAxisPixelData(this.graphData.xAxis, canvasWidth, [100, 100], false);
+        this.calculateAxisPixelData(this.graphData.yAxis, canvasHeight, [100, 100], invertedY);
+        this.graphData.xAxis.gridLines = this.calculateGridLines(this.graphData.xAxis, false);
+        this.graphData.yAxis.gridLines = this.calculateGridLines(this.graphData.yAxis, true);
+        this.graphData.lines = this.calculateLines(this.graphData.unplottedLines, invertedY);
+        // Draw the graph.
         this.drawbackground('white');
         this.drawGridlines('x', this.graphData.xAxis, this.graphData.yAxis.startPixel, this.graphData.yAxis.stopPixel);
         this.drawGridlines('y', this.graphData.yAxis, this.graphData.xAxis.startPixel, this.graphData.xAxis.stopPixel);
@@ -95,6 +102,70 @@ class graph
         this.context.strokeStyle = color;
         this.context.lineWidth = lineWidth;
         this.context.stroke();
+    }
+
+    calculateAxisPixelData(axis, axisCanvasSize, margins, inverted)
+    {
+        let axisGraphSize = axisCanvasSize - margins[0] - margins[1];
+        axis.pixelToValueRatio = parseFloat((axisGraphSize / axis.valueRange).toFixed(10));
+        axis.gridPixelIncrement = parseFloat((axis.pixelToValueRatio * axis.gridValueIncrement).toFixed(0));
+        if (inverted === false) {
+            axis.startPixel = margins[0];
+            axis.stopPixel = axisCanvasSize - margins[1];
+        } else {
+            axis.startPixel = axisCanvasSize - margins[0];
+            axis.stopPixel = margins[1];
+        }
+    }
+
+    calculateValuePixelPosition(axis, value, inverted)
+    {
+        let valueDistanceFromStart = value - axis.startValue;
+        let pixelDistanceFromStart = parseFloat((valueDistanceFromStart * axis.pixelToValueRatio).toFixed(10));
+        if (inverted === false) {
+            return axis.startPixel + pixelDistanceFromStart;
+        } else {
+            return axis.startPixel - pixelDistanceFromStart;
+        }
+    }
+
+    calculateGridLines(axis, inverted)
+    {
+        let gridLines = [];
+        let gridLineCount = 0;
+        while (gridLineCount <= axis.gridCount) {
+            let gridLineValue = gridLineCount * axis.gridValueIncrement;
+            let gridLineValueWithOffset = gridLineValue + axis.startValue;
+            let pixelPosition = this.calculateValuePixelPosition(axis, gridLineValueWithOffset, inverted);
+            let gridLine = [];
+            gridLine["pixel"] = pixelPosition;
+            gridLine["value"] = gridLineValueWithOffset;
+            gridLines.push(gridLine);
+            gridLineCount++;
+        }
+        return gridLines;
+    }
+
+    calculateLines(unplottedLines, inverted)
+    {
+        let lines = [];
+        for (let unplottedLine of unplottedLines) {
+            let points = [];
+            for (let coordinate of unplottedLine.coordinates) {
+                let point = [];
+                point["xPos"] = this.calculateValuePixelPosition(this.graphData.xAxis, coordinate[0], false);
+                point["xValue"] = coordinate[0];
+                point["yPos"] = this.calculateValuePixelPosition(this.graphData.yAxis, coordinate[1], inverted);
+                point["yValue"] = coordinate[1];
+                points.push(point);
+            }
+            let line = [];
+            line["label"] = unplottedLine.label;
+            line["color"] = unplottedLine.color;
+            line["points"] = points;
+            lines.push(line);
+        }
+        return lines;
     }
 
 }
