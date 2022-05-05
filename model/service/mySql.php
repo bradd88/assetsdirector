@@ -133,7 +133,7 @@ class MySql
     }
 
     /** Create rows in the database using Key/Value pairs from $insertArray. */
-    public function create(string $tableName, array $insertArray): string
+    public function create(string $tableName, array $insertArray): int
     {
         $columnString = $this->arrayToQueryString($insertArray, 'insertColumn');
         $valueString = $this->arrayToQueryString($insertArray, 'insertValue');

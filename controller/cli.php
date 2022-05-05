@@ -28,6 +28,11 @@ class Cli {
             $accounts = $this->mySql->read('accounts');
             foreach ($accounts as $account) {
 
+                $start = (isset($this->arguments['start'])) ? new DateTime($this->arguments['start']) : new DateTime('today');
+                $start = $start->format('Y-m-d');
+                $stop = (isset($this->arguments['stop'])) ? new DateTime($this->arguments['stop']) : new DateTime('tomorrow');
+                $stop = $stop->format('Y-m-d');
+
                 $updateTokens = $this->arguments['updateTokens'] ?? FALSE;
                 if ($updateTokens === TRUE) {
                     $this->tdaApi->updateTokens($account->account_id);
@@ -36,10 +41,8 @@ class Cli {
                 
                 $updateTransactions = $this->arguments['updateTransactions'] ?? FALSE;
                 if ($updateTransactions === TRUE) {
-                    $start = '2021-10-01';
-                    $end = '2021-10-06';
-                    $this->tdaApi->updateTransactions($account->account_id, $start, $end);
-                    $this->log->save('cli', 'Updating trasactions for account #' . $account->account_id . ': ' . $start . ' to ' . $end . '.');
+                    $this->tdaApi->batchUpdateTransactions($account->account_id, $start, $stop);
+                    $this->log->save('cli', 'Updating transactions for account #' . $account->account_id . ': ' . $start . ' to ' . $stop . '.');
                 }
 
                 $updateOrders = $this->arguments['updateOrders'] ?? FALSE;

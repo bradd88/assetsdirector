@@ -80,6 +80,7 @@ class TdaApi
         }
     }
 
+    // FIX: Hardcoded single account
     /**
      * Download and save transactions for a specific date range.
      *
@@ -109,24 +110,50 @@ class TdaApi
             $processedTransaction = $this->flattenTransaction($transaction);
             $transactionTable = (isset($transaction->transactionSubType)) ? 'transactions' : 'transactions_pending' ;
             $mySqlResponse = $this->mySql->create($transactionTable, $processedTransaction);
-            if (!is_numeric($mySqlResponse)) {
-                $transactionsErrors[] = $mySqlResponse;
+            if ($mySqlResponse === 0) {
+                $transactionsDuplicates[] = $transaction->transactionId;
             } else {
-                if ($mySqlResponse === 0) {
-                    $transactionsDuplicates[] = $transaction->transactionId;
+                if ($transactionTable === 'transactions_pending') {
+                    $transactionsPending[] = $transaction->orderId;
                 } else {
-                    if ($transactionTable === 'transactions_pending') {
-                        $transactionsPending[] = $transaction->orderId;
-                    } else {
-                        $transactionsUpdated[] = $transaction->transactionId;
-                    }
+                    $transactionsUpdated[] = $transaction->transactionId;
                 }
             }
         }
-        $logMessage = 'Account#: ' . $accountId . ' - Transactions Downloaded - New: ' . count($transactionsUpdated) . ' Duplicates: ' . count($transactionsDuplicates) . ' Pending: ' . count($transactionsPending) . ' Errors: ' . count($transactionsErrors);
+        $logMessage = 'Account#: ' . $accountId;
+        $logMessage .= ' - Transactions Downloaded for ' . $startDate . ' to ' . $endDate;
+        $logMessage .= ' - New: ' . count($transactionsUpdated);
+        $logMessage .= ' Duplicates: ' . count($transactionsDuplicates);
+        $logMessage .= ' Pending: ' . count($transactionsPending);
+
         $this->log->save('transactions', $logMessage);
         if (count($transactionsErrors) > 0) {
             $this->log->save('transactions', 'Account#: ' . $accountId . ' - Failed to add transactions: ' . json_encode($transactionsErrors));
+        }
+        return TRUE;
+    }
+
+    /** Break transaction update into batches to avoid issues with the TDA API silently dropping data when the response is too large. */
+    public function batchUpdateTransactions(string $accountId, string $startDate, string $stopDate): bool
+    {
+        $startDate = new DateTime($startDate);
+        $stopDate = new DateTime($stopDate);
+        $oneDay = new DateInterval('P1D');
+        $sixDays = new DateInterval('P6D');
+        $currentDate = new DateTime($startDate->format('Y-m-d'));
+        while ($currentDate < $stopDate) {
+            $weekStart = $currentDate->format('Y-m-d');
+            $currentDate->add($sixDays);
+            if ($currentDate > $stopDate) {
+                $weekStop = $stopDate->format('Y-m-d');
+            } else {
+                $weekStop = $currentDate->format('Y-m-d');
+            }
+            $batchUpdate = $this->updateTransactions($accountId, $weekStart, $weekStop);
+            if ($batchUpdate === FALSE) {
+                return FALSE;
+            }
+            $currentDate->add($oneDay);
         }
         return TRUE;
     }
