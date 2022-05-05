@@ -80,12 +80,16 @@ class TdaApi
         }
     }
 
-    /** Download and save transactions for a specific date range. */
-    public function updateTransactions(string $accountId, ?string $startDate = NULL, ?string $endDate = NULL): bool
+    /**
+     * Download and save transactions for a specific date range.
+     *
+     * @param string $accountId TDA Account ID.
+     * @param string $startDate Date in Y-m-d format.
+     * @param string $endDate Date in Y-m-d format.
+     * @return boolean Returns TRUE if update was successful, or FALSE if there was an error.
+     */
+    public function updateTransactions(string $accountId, string $startDate, string $endDate): bool
     {
-        $today = date("Y-m-d");
-        $startDate = $startDate ?? $today;
-        $endDate = $endDate ?? $today;
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         $transactionsRequest = $this->tdaApiRequest->transactions($accountInfo->accessToken, $accountInfo->accountNumber, $startDate, $endDate);
         if ($transactionsRequest->httpdCode !== 200) {
@@ -102,7 +106,7 @@ class TdaApi
         $transactionsErrors = [];
         foreach ($transactions as $transaction){
             $transaction->account_id = $accountId;
-            $processedTransaction = flatten($transaction);
+            $processedTransaction = $this->flattenTransaction($transaction);
             $transactionTable = (isset($transaction->transactionSubType)) ? 'transactions' : 'transactions_pending' ;
             $mySqlResponse = $this->mySql->create($transactionTable, $processedTransaction);
             if (!is_numeric($mySqlResponse)) {
@@ -146,6 +150,21 @@ class TdaApi
         $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
         $tdaAccount = $this->tdaApiRequest->accountInfo($accountInfo->accessToken, $accountInfo->accountNumber);
         return $tdaAccount;
+    }
+
+    /** Flatten an array/objects into an associative array. */
+    private function flattenTransaction(array|object $parent): array
+    {
+        $output = [];
+        foreach ($parent as $key => $value) {
+            if (is_array($value) || is_object($value)) {
+                $child = $this->flattenTransaction($value);
+                $output = array_merge($output, $child);
+            } else {
+                $output[$key] = $value;
+            }
+        }
+        return $output;
     }
 
 }
