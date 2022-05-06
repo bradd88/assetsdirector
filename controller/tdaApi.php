@@ -80,7 +80,6 @@ class TdaApi
         }
     }
 
-    // FIX: Hardcoded single account
     /**
      * Download and save transactions for a specific date range.
      *
@@ -133,23 +132,15 @@ class TdaApi
         return TRUE;
     }
 
-    /** Break transaction update into batches to avoid issues with the TDA API silently dropping data when the response is too large. */
+    /** Break transaction updates into daily batches to avoid issues with the TDA API silently dropping data when the response is too large. */
     public function batchUpdateTransactions(string $accountId, string $startDate, string $stopDate): bool
     {
         $startDate = new DateTime($startDate);
         $stopDate = new DateTime($stopDate);
         $oneDay = new DateInterval('P1D');
-        $sixDays = new DateInterval('P6D');
         $currentDate = new DateTime($startDate->format('Y-m-d'));
-        while ($currentDate < $stopDate) {
-            $weekStart = $currentDate->format('Y-m-d');
-            $currentDate->add($sixDays);
-            if ($currentDate > $stopDate) {
-                $weekStop = $stopDate->format('Y-m-d');
-            } else {
-                $weekStop = $currentDate->format('Y-m-d');
-            }
-            $batchUpdate = $this->updateTransactions($accountId, $weekStart, $weekStop);
+        while ($currentDate <= $stopDate) {
+            $batchUpdate = $this->updateTransactions($accountId, $currentDate->format('Y-m-d'), $currentDate->format('Y-m-d'));
             if ($batchUpdate === FALSE) {
                 return FALSE;
             }
