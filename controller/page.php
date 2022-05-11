@@ -72,23 +72,21 @@ class Page
                 break;
                 
             case 'transactions':
-                $databaseResults = $this->mySql->read('transactions', [
-                    'account_id' => $this->login->getAccountId(),
-                    'type' => 'TRADE',
-                    'assetType' => 'EQUITY',
-                    'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']
+                $transactions = $this->mySql->read('transactions', NULL, [
+                    ['account_id', 'isEqual', $this->login->getAccountId()],
+                    ['type', 'isEqual', 'TRADE'],
+                    ['assetType', 'isEqual', 'EQUITY'],
+                    ['transactionDate', 'isBetween', ['2021-01-01T00:00:00+0000', '2021-10-30T00:00:00+0000']]
                 ]);
                 $transactions = $this->transactionList->create($databaseResults);
                 $content = $this->view->get('page/transactions.phtml', ['transactions' => $transactions, 'outstandingAssets' => $this->transactionList->outstandingAssets]);
                 break;
                 
             case 'trades':
-                // Create the list of transactions
-                $databaseResults = $this->mySql->read('transactions', [
-                    'account_id' => $this->login->getAccountId(),
-                    'type' => 'TRADE',
-                    'assetType' => 'EQUITY',
-                    'transactionDate' => ['2021-01-01T00:00:00+0000', '2021-02-30T00:00:00+0000']
+                $databaseResults = $this->mySql->read('trades', NULL, [
+                    ['account_id', 'isEqual', $this->login->getAccountId()],
+                    ['assetType', 'isEqual', 'EQUITY'],
+                    ['stop', 'isBetween', ['2021-01-01T00:00:00+0000', '2021-02-30T00:00:00+0000']]
                 ]);
                 $transactionList = $this->transactionList->create($databaseResults);
 
@@ -144,7 +142,9 @@ class Page
                 }
 
                 // Get the refresh token status
-                $accountApiInfo = $this->mySql->read('tda_api', ['account_id' => $this->login->getAccountId()])[0];
+                $accountApiInfo = $this->mySql->read('tda_api', NULL, [
+                    ['account_id', 'isEqual', $this->login->getAccountId()]
+                    ])[0];
                 $refreshTokenStatus = ($accountApiInfo->refreshTokenExpiration > time()) ? 'Current' : 'Expired';
                 $accessTokenStatus = ($accountApiInfo->accessTokenExpiration > time()) ? 'Current' : 'Expired';
 

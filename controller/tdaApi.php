@@ -18,13 +18,17 @@ class TdaApi
     private function saveTokens(string $accountId, string $accessToken, string $accessTokenExpiration, ?string $refreshToken = NULL, ?string $refreshTokenExpiration = NULL): void
     {
         $accessTokenExpirationModified = $accessTokenExpiration + time() - 60;
-        $this->mySql->update('tda_api', ['account_id' => $accountId], [
+        $this->mySql->update('tda_api', [
+            ['account_id', 'isEqual', $accountId]
+        ], [
             'accessToken' => $accessToken,
             'accessTokenExpiration' => $accessTokenExpirationModified
         ]);
         if (!is_null($refreshToken)) {
             $refreshTokenExpirationModified = $refreshTokenExpiration + time() - 86400;
-            $this->mySql->update('tda_api', ['account_id' => $accountId], [
+            $this->mySql->update('tda_api', [
+                ['account_id', 'isEqual', $accountId]
+            ], [
                 'refreshToken' => $refreshToken,
                 'refreshTokenExpiration' => $refreshTokenExpirationModified
             ]);
@@ -34,7 +38,9 @@ class TdaApi
     /** Create and save brand new Refresh and Access tokens using a Permission Code. */
     public function createTokens(string $accountId, string $permissionCode): bool
     {
-        $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
+        $accountInfo = $this->mySql->read('tda_api', NULL, [
+            ['account_id', 'isEqual', $accountId]
+        ])[0];
         $tokenRequest = $this->tdaApiRequest->newTokens($permissionCode, $accountInfo->consumerKey, $accountInfo->redirectUri);
         if ($tokenRequest->httpdCode !== 200) {
             $this->log->save('tokens', 'Account#: ' . $accountId . ' - Error creating new tokens: ' . $tokenRequest->response->response->error);
@@ -49,7 +55,9 @@ class TdaApi
     /** Update and save expired tokens. Return FALSE if there was an issue updating tokens.*/
     public function updateTokens(string $accountId): bool
     {
-        $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
+        $accountInfo = $this->mySql->read('tda_api', NULL, [
+            ['account_id', 'isEqual', $accountId]
+        ])[0];
         if (time() < $accountInfo->accessTokenExpiration) {
             $this->log->save('tokens', 'Account#: ' . $accountId . ' - Tokens are not expired.');
             return TRUE;
@@ -90,7 +98,9 @@ class TdaApi
      */
     public function updateTransactions(string $accountId, string $startDate, string $endDate): bool
     {
-        $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
+        $accountInfo = $this->mySql->read('tda_api', NULL, [
+            ['account_id', 'isEqual', $accountId]
+        ])[0];
         $transactionsRequest = $this->tdaApiRequest->transactions($accountInfo->accessToken, $accountInfo->accountNumber, $startDate, $endDate);
         if ($transactionsRequest->httpdCode !== 200) {
             $this->log->save('transactions', 'Error downloading transactions for account' . $accountId . ': ' . $transactionsRequest->response->error);
@@ -152,7 +162,9 @@ class TdaApi
     /** Download and save orders for a specified date range. */
     public function updateOrders(string $accountId, ?string $startDate = NULL, ?string $endDate = NULL)
     {
-        $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
+        $accountInfo = $this->mySql->read('tda_api', NULL, [
+            ['account_id', 'isEqual', $accountId]
+        ])[0];
         //echo '<pre>';
         //var_dump($accountInfo);
         //echo '</pre>';
@@ -165,7 +177,9 @@ class TdaApi
 
     public function getTdaAccount(string $accountId): object
     {
-        $accountInfo = $this->mySql->read('tda_api', ['account_id' => $accountId])[0];
+        $accountInfo = $this->mySql->read('tda_api', NULL, [
+            ['account_id', 'isEqual', $accountId]
+        ])[0];
         $tdaAccount = $this->tdaApiRequest->accountInfo($accountInfo->accessToken, $accountInfo->accountNumber);
         return $tdaAccount;
     }

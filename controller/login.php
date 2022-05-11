@@ -81,7 +81,9 @@ class Login
         $this->accountId = $id;
         $_SESSION['accountId'] = $this->accountId;
         $_SESSION['expire'] = time() + $this->config->getSettings('application')->login_timeout;
-        $this->mySql->update('accounts', ['account_id' => $this->accountId,], ['lastSeen' => time()]);
+        $this->mySql->update('accounts', [
+            ['account_id', 'isEqual', $this->accountId]
+        ], ['lastSeen' => time()]);
         session_regenerate_id();
     }
 }
