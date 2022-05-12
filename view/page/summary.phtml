@@ -1,1 +1,12 @@
 <h1>Summary</h1>
+<span>Total Funding: <?= number_format($totalFunding, 2, '.', ',') ?></span><br />
+<span>Dividend/Interest: <?= number_format($dividendAndInterest, 2, '.', ',') ?></span><br />
+<span>Fees: <?= number_format($fees, 2, '.', ',') ?></span><br />
+<span>Transactions: <?= number_format($transactionCount, 0, '.', ',') ?></span><br />
+<span>Equity Returns: <?= number_format($equityReturns, 2, '.', ',') ?></span><br />
+<span>Option Returns: <?= number_format($optionReturns, 2, '.', ',') ?></span><br />
+<span>Outstanding shares: <?= number_format($equitiesOutstanding, 2, '.', ',') ?></span><br />
+<span>Total Investment: <?= number_format($totalFunding, 2, '.', ',') ?></span><br />
+<span>Total Return: <?= number_format($totalReturns, 2, '.', ',') ?></span><br />
+<span>Percentage Return: <?= number_format($percentReturnReadable, 2, '.', ',') ?> %</span><br />
+<span>Returns per Transaction: <?= number_format($returnPerTransaction, 2, '.', ',') ?></span><br />
