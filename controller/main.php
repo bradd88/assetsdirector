@@ -29,10 +29,19 @@ class Main
     /** Determine the instance type, inject dependencies, and run. */
     private function exec(): void
     {
-        $instanceType = (php_sapi_name() === 'cli') ? 'Cli' : 'Page';
         $serviceContainer = new ServiceContainer();
-        $instance = $serviceContainer->create($instanceType);
-        echo $instance->exec();
+        if (php_sapi_name() === 'cli') {
+            /** @var Cli $cli */
+            $cli = $serviceContainer->create('Cli');
+            $cli->exec();
+        } else {
+            /** @var Navigation $navigation */
+            $navigation = $serviceContainer->create('Navigation');
+            $pageClass = $navigation->exec();
+            /** @var AbstractPage $page */
+            $page = $serviceContainer->create($pageClass);
+            echo $page->exec();
+        }
     }
 }
 
