@@ -239,6 +239,31 @@ class MySql
         return $setString;
     }
 
+    /** Create the ORDER BY section of a query from an array.
+     * Each array entry should be an array containing the column and direction to sort.
+     * E.G.
+     * orderbyString([
+     *     ['date', 'DESC'],
+     *     ['type', 'ASC']
+     * ]);
+     * returns the following string: ORDER BY `date` DESC, `type` ASC
+    */
+    private function orderbyString(array $array): string
+    {
+        $string = 'ORDER BY ';
+        foreach ($array as $key => $value) {
+            $direction = strtoupper($value[1]);
+            if ($direction !== 'DESC' && $direction !== 'ASC') {
+                throw new Exception('Invalid order direction.');
+            }
+            $string .= $this->backticks($value[0]) . $direction;
+            if ($key !== array_key_last($array)) {
+                $string .= ', ';
+            }
+        }
+        return $string;
+    }
+
     /** Create a row in the database using Key/Value pairs from $insertArray as the Columns/Values. */
     public function create(string $tableName, array $insertArray): int
     {
@@ -248,12 +273,12 @@ class MySql
     }
 
     /** Read from the database and return the results an array of objects representing the rows. */
-    public function read(string $tableName, ?array $selectColumns = NULL, ?array $whereArray = NULL, ?string $orderBy = NULL): array
+    public function read(string $tableName, ?array $selectColumns = NULL, ?array $whereArray = NULL, ?array $orderArray = NULL): array
     {
         $queryString = $this->selectString($selectColumns);
         $queryString .= 'FROM ' . $this->backticks($tableName);
         $queryString .= ($whereArray !== NULL) ? ' ' . $this->whereString($whereArray) : '';
-        $queryString .= ($orderBy !== NULL) ? ' ORDER BY ' . $this->backticks($orderBy) : '';
+        $queryString .= ($orderArray !== NULL) ? ' ' . $this->orderbyString($orderArray) : '';
         $results = $this->query($queryString)->store_result()->fetch_all(MYSQLI_ASSOC);
         foreach ($results as &$result) {
             $result = (object) $result;
