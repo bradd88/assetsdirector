@@ -5,33 +5,34 @@
 class TransactionList
 {
     public array $transactions;
-    public int $outstandingAssets;
-    private TransactionFactory $transactionFactory;
 
-    public function __construct(TransactionFactory $transactionFactory)
+    public function __construct()
     {
-        $this->transactionFactory = $transactionFactory;
-        $this->outstandingAssets = 0;
+    }
+
+    public function addTransaction(Transaction $transaction): void
+    {
+        $this->transactions[] = $transaction;
     }
 
     /**
-     * Create and return the list of transaction objects.
+     * Return the list of transaction objects.
      * @return Transaction[]
      */
-    public function create(array $array): iterable
+    public function getTransactions(): iterable
     {
-        foreach ($array as $item) {
-            $transaction = $this->transactionFactory->cast($item);
-            $this->transactions[] = $transaction;
-        }
-        if (count($this->transactions) > 0) {
-            usort($this->transactions, [$this, "sort"]);
-        }
         return $this->transactions;
     }
 
+    public function sortTransactions(): void
+    {
+        if (count($this->transactions) > 0) {
+            usort($this->transactions, [$this, "sortComparison"]);
+        }
+    }
+
     /** Comparison function for quicksort. Sorts descending by order ID, then by transaction ID. */
-    private function sort(Transaction $a, Transaction $b): int
+    private function sortComparison(Transaction $a, Transaction $b): int
     {
         $output = $a->orderId <=> $b->orderId;
         if ($output == 0) {

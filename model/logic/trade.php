@@ -10,6 +10,7 @@ class Trade {
     public string $closeTimestamp;
     public int $lengthSeconds;
     public float $return;
+    public int $quantity;
     public array $orderIds;
     public array $transactionIds;
     public object $buy;
@@ -32,34 +33,65 @@ class Trade {
     /** Add a new transaction to the trade. Once transactions have been added and the outstanding assets reaches zero, the trade will be proccessed. */
     public function addTransaction(Transaction $transaction): bool
     {
-        $this->symbol = $this->symbol ?? $transaction->symbol;
-        $this->assetType = $this->assetType ?? $transaction->assetType;
-        $transactionNotAdded = !in_array($transaction->transactionId, $this->transactionIds);
-        if ($this->status === 'incomplete' && $transaction->symbol == $this->symbol && $transaction->assetType == $this->assetType && $transactionNotAdded === TRUE) {
-            $this->validate($transaction);
-            $this->processTransaction($transaction);
-            if ($this->outstanding === 0) {
-                $this->createSummary();
-                $this->status = 'complete';
-            }
-            return TRUE;
-        } else {
+        $validation = $this->validate($transaction);
+        if ($validation === FALSE) {
             return FALSE;
         }
+        $this->processTransaction($transaction);
+        if ($this->outstanding === 0) {
+            $this->createSummary();
+            $this->status = 'complete';
+        }
+            return TRUE;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
     }
 
     /** Determine if the transaction can be added to the trade without issues. */
-    private function validate($transaction): void
+    private function validate($transaction): bool
     {
+        $this->symbol = $this->symbol ?? $transaction->symbol;
+        if ($transaction->symbol !== $this->symbol) {
+            $errorText = 'Transaction symbol doesn\'t match trade symbol.';
+        }
+        $this->assetType = $this->assetType ?? $transaction->assetType;
+        if ($transaction->assetType !== $this->assetType) {
+            $errorText = 'Transaction asset type doesn\'t match trade asset type.';
+        }
+        $transactionAlreadyAdded = in_array($transaction->transactionId, $this->transactionIds);
+        if ($transactionAlreadyAdded) {
+            $errorText = 'Transaction has already been added to the trade.';
+        }
         if (!isset($this->longOrShort)) {
             if ($transaction->transactionSubType === 'BY') {
                 $this->longOrShort = 'Long';
             } elseif ($transaction->transactionSubType === 'SS') {
                 $this->longOrShort = 'Short';
-            } else {
-                throw new Exception("Transaction is attempting to close the trade, but no openening transaction exists. Transaction ID: $transaction->transactionId");
+            } elseif ($transaction->transactionSubType === 'SL') {
+                $errorText = 'Attempting to close long on a trade with no open position.';
+            } elseif ($transaction->transactionSubType === 'CS') {
+                $errorText = 'Attempting to close short on a trade with no open position.';
+            }
+        } else {
+            if ($this->longOrShort === 'Long' && $transaction->transactionSubType === 'SS') {
+                $errorText = 'Attempting to open short a long position.';
+            } elseif ($this->longOrShort === 'Long' && $transaction->transactionSubType === 'CS') {
+                $errorText = 'Attempting to close short on a long positon.';
+            } elseif ($this->longOrShort === 'Short' && $transaction->transactionSubType === 'BY') {
+                $errorText = 'Attempting to open long on a short position.';
+            } elseif ($this->longOrShort === 'Short' && $transaction->transactionSubType === 'SL') {
+                $errorText = 'Attempting to close long on a short position.';
             }
         }
+        if (isset($errorText)) {
+            $errorText .= ' Transaction ID: ' . $transaction->transactionId;
+            trigger_error($errorText, E_USER_WARNING);
+            return FALSE;
+        }
+        return TRUE;
     }
 
     /** Add a new transaction and recalculate the trade. */
@@ -88,6 +120,7 @@ class Trade {
     {
         $this->buy = $this->calculateLeg($this->buyTransactions);
         $this->sell = $this->calculateLeg($this->sellTransactions);
+        $this->quantity = $this->buy->amount;
         $this->return = bcadd($this->sell->netCost, $this->buy->netCost, 2);
         $this->lengthSeconds = bcsub("$this->closeTimestamp", "$this->openTimestamp", 0);
         $this->strategy = $this->longOrShort;

@@ -17,25 +17,6 @@ class TradeList
         $this->openTrade = $this->tradeFactory->create();
     }
 
-    /** Add a transaction to the currently open trade. If a trade is completed by the transaction, then add the trade to the list and open a new trade. */
-    public function addTransaction(Transaction $transaction): bool
-    {
-        $addTransactionStatus = $this->openTrade->addTransaction($transaction);
-        if ($addTransactionStatus === TRUE && $this->openTrade->status === 'complete') {
-            $this->trades[] = $this->openTrade;
-            $this->openTrade = $this->tradeFactory->create();
-        }
-        return $addTransactionStatus;
-    }
-
-    /** Add and process an entire transaction list all at once. */
-    public function addTransactionList(TransactionList $transactionList): void
-    {
-        foreach ($transactionList as $transaction) {
-            $this->addTransaction($transaction);
-        }
-    }
-
     /** Add an already completed trade to the list. */
     public function addTrade(Trade $trade): void
     {

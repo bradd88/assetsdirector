@@ -6,12 +6,14 @@ class Cli {
     private TdaApi $tdaApi;
     private Log $log;
     private array $arguments;
+    private ProcessTrades $processTrades;
 
-    public function __construct(MySql $mySql, TdaApi $tdaApi, Log $log, Request $request)
+    public function __construct(MySql $mySql, TdaApi $tdaApi, Log $log, Request $request, ProcessTrades $processTrades, Calendar $calendar)
     {
         $this->mySql = $mySql;
         $this->tdaApi = $tdaApi;
         $this->log = $log;
+        $this->processTrades = $processTrades;
         $this->arguments = array();
         foreach ($request->server->argv as $argument) {
             $argumentParsed = parse_ini_string($argument, false, INI_SCANNER_TYPED);
@@ -47,15 +49,18 @@ class Cli {
 
                 $updateOrders = $this->arguments['updateOrders'] ?? FALSE;
                 if ($updateOrders === TRUE) {
-                    $start = '2021-10-01';
-                    $end = '2021-10-06';
                     $this->tdaApi->updateOrders($account->account_id);
-                    $this->log->save('cli', 'Updating orders for account #' . $account->account_id . ': ' . $start . ' to ' . $end . '.');
+                    $this->log->save('cli', 'Updating orders for account #' . $account->account_id . ': ' . $start . ' to ' . $stop . '.');
+                }
+
+                $updateTrades = $this->arguments['updateTrades'] ?? FALSE;
+                if ($updateTrades === TRUE) {
+                    $tradesSaved = $this->processTrades->exec($account->account_id, $start, $stop);
+                    $this->log->save('cli', 'Added ' . $tradesSaved . ' trades for account #' . $account->account_id . ': ' . $start . ' to ' . $stop . '.');
                 }
             }
         }
     }
-
 }
 
 ?>
