@@ -127,7 +127,8 @@ class SummaryPage extends AbstractPage
             'percentReturnReadable' => $percentReturnReadable,
             'returnPerTransaction' => $returnPerTransaction
         );
-        return $this->generate('page/summary.phtml', $pageParameters, TRUE);
+        $content = $this->view->get('page/summary.phtml', $pageParameters);
+        return $this->generatePage($content, TRUE);
     }
 }
 

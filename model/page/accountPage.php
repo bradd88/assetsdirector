@@ -39,7 +39,8 @@ class AccountPage extends AbstractPage
             'refreshTokenStatus' => $refreshTokenStatus,
             'accessTokenStatus' => $accessTokenStatus
         );
-        return $this->generate('page/account.phtml', $pageParameters, TRUE);
+        $content = $this->view->get('page/account.phtml', $pageParameters);
+        return $this->generatePage($content, TRUE);
     }
 }
 

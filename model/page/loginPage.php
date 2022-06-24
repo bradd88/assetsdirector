@@ -26,7 +26,8 @@ class LoginPage extends AbstractPage
                 $message = 'Incorrect username/password.';
             }
         }
-        return $this->generate('page/login.phtml', ['message' => $message, 'requested' => $this->request->get->page], FALSE);
+        $content = $this->view->get('page/login.phtml', ['message' => $message, 'requested' => $this->request->get->page]);
+        return $this->generatePage($content, FALSE);
     }
 }
 

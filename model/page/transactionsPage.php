@@ -30,7 +30,8 @@ class TransactionsPage extends AbstractPage
                 ['transactionDate', 'ASC']
             ]
             );
-        return $this->generate('page/transactions.phtml', ['transactions' => $transactions], TRUE);
+        $content = $this->view->get('page/transactions.phtml', ['transactions' => $transactions]);
+        return $this->generatePage($content, TRUE);
     }
 }
 

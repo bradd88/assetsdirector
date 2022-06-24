@@ -11,7 +11,8 @@ class HomePage extends AbstractPage
 
     public function exec(): string
     {
-        return $this->generate('page/home.phtml', [], TRUE);
+        $content = $this->view->get('page/home.phtml', []);
+        return $this->generatePage($content, TRUE);
     }
 }
 
