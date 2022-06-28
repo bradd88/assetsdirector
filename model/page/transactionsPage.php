@@ -22,12 +22,11 @@ class TransactionsPage extends AbstractPage
                 ['account_id', 'isEqual', $this->login->getAccountId()],
                 ['type', 'isEqual', 'TRADE'],
                 ['assetType', 'isEqual', 'EQUITY'],
-                ['symbol', 'isEqual', 'TSLA'],
-                ['transactionDate', 'isBetween', ['2021-01-01T00:00:00+0000', '2021-04-01T00:00:00+0000']]
+                ['symbol', 'isEqual', 'AAPL'],
+                ['transactionDate', 'isBetween', ['2022-02-17T00:00:00+0000', '2022-02-18T00:00:00+0000']]
             ],
             [
-                ['orderDate', 'ASC'],
-                ['transactionDate', 'ASC']
+                ['orderDate', 'ASC']
             ]
             );
         $content = $this->view->get('page/transactions.phtml', ['transactions' => $transactions]);

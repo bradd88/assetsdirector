@@ -35,10 +35,10 @@ class TradesPage extends AbstractPage
             [
                 ['account_id', 'isEqual', $this->login->getAccountId()],
                 ['assetType', 'isEqual', 'EQUITY'],
-                ['stop', 'isBetween', ['2021-01-01T00:00:00+0000', '2021-02-30T00:00:00+0000']]
+                ['closeTimestamp', 'isBetween', ['2021-01-01T00:00:00+0000', '2021-02-30T00:00:00+0000']]
             ],
             [
-                ['start', 'ASC']
+                ['openTimestamp', 'ASC']
             ]
         );
 
