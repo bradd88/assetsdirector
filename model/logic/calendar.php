@@ -5,17 +5,17 @@ class Calendar
 {
 
     /** Find the date of the first trading day of the calendar year (the first Monday in January). */
-    public function firstTradeDay(string $year): DateTime
+    public function firstTradeDay(string $year): string
     {
         $date = new DateTime($year . '-01-01');
         $date->modify('first monday of this month');
-        return $date;
+        return $date->format('Y-m-d');
     }
 
     /** Find the trade year (not calendar year) that a date is in. */
-    public function tradeYear(DateTime $date = NULL): string
+    public function tradeYear(string $date): int
     {
-        $date = $date ?? new DateTime('today');
+        $date = new DateTime($date);
         $year = $date->format('Y');
         $firstTradeDayOfCalendarYear = $this->firstTradeDay($year);
         $tradeYear = ($date < $firstTradeDayOfCalendarYear) ? bcsub($year, 1, 0) : $year;
@@ -23,28 +23,32 @@ class Calendar
     }
 
     /** Find the week number of the trade year that a given date falls in. */
-    public function tradeWeekNumber(DateTime $date = NULL): string
+    public function tradeWeekNumber(string $date): int
     {
-        $date = $date ?? new DateTime('today');
-        $tradeYear = $this->tradeYear($date);
-        $firstTradeDay = $this->firstTradeDay($tradeYear);
-        $days = $firstTradeDay->diff($date)->format('%R%a');
-        $weekNumber = ceil(bcdiv($days, 7, 1));
+        $date = new DateTime($date);
+        $tradeYear = $this->tradeYear($date->format('Y-m-d'));
+        $firstTradeDay = new DateTime($this->firstTradeDay($tradeYear));
+        $daysDiff = $firstTradeDay->diff($date)->format('%a');
+        $dayNumber = bcadd($daysDiff, 1, 0);
+        $weekNumber = ceil(bcdiv($dayNumber, 7, 1));
         return $weekNumber;
     }
 
-    /** Find the start and end dates for a given trade week. */
-    public function tradeWeekStartStop(string $weekNumber = NULL, string $year = NULL): array
+    public function tradeWeekStart(string $weekNumber, string $year): string
     {
-        $weekNumber = $weekNumber ?? $this->tradeWeekNumber();
-        $year = $year ?? $this->tradeYear();
+        $firstTradeDayOfYear = new DateTime($this->firstTradeDay($year));
         $weeksFromStart = bcsub($weekNumber, 1, 0);
-        $daysToWeek = bcmul($weeksFromStart, 7, 0);
-        $daysToWeekStartInterval = new DateInterval('P' . $daysToWeek . 'D');
-        $weekStartDate = $this->firstTradeDay($year)->add($daysToWeekStartInterval);
-        $daysToWeekEndInterval = new DateInterval('P6D');
-        $weekEndDate = $this->firstTradeDay($year)->add($daysToWeekStartInterval)->add($daysToWeekEndInterval);
-        return array('start' => $weekStartDate->format('Y-m-d'), 'stop' => $weekEndDate->format('Y-m-d'));
+        $daysToWeek = new DateInterval('P' . bcmul($weeksFromStart, 7, 0) . 'D');
+        $weekStartDate = $firstTradeDayOfYear->add($daysToWeek);
+        return $weekStartDate->format('Y-m-d');
+    }
+
+    public function tradeWeekStop(string $startDate): string
+    {
+        $startDate = new DateTime($startDate);
+        $sixDays = new DateInterval('P6D');
+        $weekStopDate = $startDate->add($sixDays);
+        return $weekStopDate->format('Y-m-d');
     }
 
     /** Convert seconds into a human readable format. */
